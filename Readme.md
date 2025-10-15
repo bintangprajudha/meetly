@@ -1,146 +1,199 @@
-Proyek Meetly (Nama Proyek Anda)
-README ini berisi panduan lengkap untuk melakukan instalasi, konfigurasi awal, hingga alur kerja kolaborasi untuk proyek Meetly. Ikuti setiap langkah dengan saksama untuk memastikan lingkungan pengembangan Anda berjalan dengan benar.
+# Meetly
 
-Daftar Isi
-Teknologi yang Digunakan
+Starter kit Laravel 12 + Inertia + Vue 3 + Vite dengan autentikasi Fortify (termasuk 2FA), halaman Settings, Tailwind CSS v4, dan utilitas pengembangan siap pakai.
 
-Kebutuhan Sistem (Prerequisites)
+## Daftar Isi
 
-Instalasi & Konfigurasi Awal
+- Ringkasan
+- Teknologi
+- Prasyarat
+- Quick Start
+- Konfigurasi Lingkungan (.env)
+- Database, Migrasi & Seeder
+- Menjalankan Proyek (Dev & SSR)
+- Testing
+- Linting & Formatting
+- Struktur Proyek
+- Alur Kerja Git
+- Lisensi
 
-Menjalankan Proyek
+## Ringkasan
 
-Alur Kerja Kolaborasi (Git Workflow)
+Proyek ini menggunakan:
 
-Aturan Penulisan Kode (Coding Style)
+- Backend: Laravel 12 + Fortify (auth, 2FA), Pail (log viewer), Queue
+- Frontend: Inertia.js + Vue 3 + Vite, Tailwind CSS v4
+- Build tooling: Vite 7, ESLint, Prettier, TypeScript
 
-Teknologi yang Digunakan
-PHP: 8.3+
+Direktori `resources/js/pages` sudah berisi halaman-halaman siap pakai (Dashboard, Auth, Settings), dan test menggunakan Pest sudah disiapkan di `tests/`.
 
-Framework: Laravel 12+
+## Teknologi
 
-Database: MySQL / MariaDB
+- PHP: ^8.2
+- Laravel: ^12
+- Inertia.js (Laravel adapter): ^2
+- Vue 3, TypeScript, Vite 7
+- Tailwind CSS v4
+- Database: MySQL/MariaDB atau SQLite
 
-Frontend: Vue.js & Vite
+## Prasyarat
 
-Package Manager: Composer (untuk PHP), NPM (untuk Node.js)
+Pastikan sudah terpasang:
 
-Server Lokal: XAMPP (disarankan) atau sejenisnya.
+- Git
+- PHP ≥ 8.2 dengan ekstensi umum (curl, mbstring, zip, pdo, xml)
+- Composer 2
+- Node.js ≥ 18 dan npm
+- MySQL/MariaDB (atau SQLite)
 
-Kebutuhan Sistem (Prerequisites)
-Pastikan perangkat lunak berikut sudah terinstal di komputer Anda sebelum memulai:
+Opsional (Ubuntu) untuk ekstensi PHP:
 
-Git: https://git-scm.com/
+```bash
+sudo apt install php-xml php-mysql php-sqlite3 php-curl php-mbstring php-zip
+```
 
-PHP 8.3+: Pastikan ekstensi PHP berikut sudah aktif.
+## Quick Start
 
-Untuk pengguna Ubuntu, Anda bisa menginstalnya dengan perintah:
+```bash
+# 1) Clone
+git clone https://github.com/bintangprajudha/meetly.git
+cd meetly
 
-sudo apt install php8.3-xml php8.3-mysql php8.3-sqlite3 php8.3-curl php8.3-mbstring php8.3-zip
-
-Composer 2: https://getcomposer.org/
-
-Node.js & NPM: https://nodejs.org/
-
-Server Lokal (XAMPP): https://www.apachefriends.org/
-
-Instalasi & Konfigurasi Awal
-Ini adalah panduan langkah demi langkah untuk menginisialisasi proyek dari awal.
-
-1. Clone Repositori
-Clone proyek ini dari repositori Git ke folder lokal Anda.
-
-git clone [URL_REPOSITORY_GIT_ANDA]
-cd nama-folder-proyek
-
-2. Instal Dependensi PHP
-Gunakan Composer untuk menginstal semua pustaka PHP yang dibutuhkan oleh Laravel.
-
+# 2) Install dependencies
 composer install
-
-3. Instal Dependensi JavaScript
-Gunakan NPM untuk menginstal semua pustaka JavaScript yang dibutuhkan oleh Vite dan Vue.
-
 npm install
 
-4. Buat File Environment
-Salin file .env.example menjadi .env. File ini akan berisi semua konfigurasi lokal Anda.
-
+# 3) Siapkan .env dan kunci aplikasi
 cp .env.example .env
-
-5. Generate Application Key
-Buat kunci enkripsi unik untuk aplikasi Anda.
-
 php artisan key:generate
 
-6. Konfigurasi Database
-Langkah ini menghubungkan proyek Laravel ke database Anda.
-a. Buat Database Baru: Buka XAMPP, jalankan Apache & MySQL. Buka http://localhost/phpmyadmin dan buat sebuah database baru (misalnya: meetly_db). Pastikan collation-nya adalah utf8mb4_unicode_ci.
+# 4) Konfigurasi DB di .env (lihat bagian berikut)
 
-b. Update File .env: Buka file .env dan sesuaikan konfigurasi database berikut:
+# 5) Migrasi + seeder (opsional, jika butuh data awal)
+php artisan migrate --seed
+
+# 6) Jalankan mode development (PHP + Vite + Queue + Logs)
+composer run dev
+```
+
+Alternatif otomatis (bootstrap cepat):
+
+```bash
+composer run setup
+# Menjalankan install, key:generate, migrate, npm install & build produksi
+```
+
+## Konfigurasi Lingkungan (.env)
+
+Ubah nilai berikut sesuai mesin Anda:
+
+```
+APP_NAME="Meetly"
+APP_ENV=local
+APP_URL=http://127.0.0.1:8000
 
 DB_CONNECTION=mysql
 DB_HOST=127.0.0.1
 DB_PORT=3306
-DB_DATABASE=meetly_db     # <== Ganti dengan nama database yang Anda buat
-DB_USERNAME=root          # <== Username default XAMPP adalah 'root'
-DB_PASSWORD=              # <== Password default XAMPP adalah KOSONG
+DB_DATABASE=meetly_db
+DB_USERNAME=root
+DB_PASSWORD=
+```
 
-7. Jalankan Migrasi & Seeder
-Perintah ini akan membuat semua tabel yang diperlukan di database Anda (migrate) dan mengisinya dengan data awal (seed).
+Catatan:
 
+- Gunakan SQLite bila perlu dengan `DB_CONNECTION=sqlite` dan set `DB_DATABASE=database/database.sqlite`.
+- Pastikan collation untuk MySQL: `utf8mb4_unicode_ci`.
+
+## Database, Migrasi & Seeder
+
+- Buat database terlebih dahulu (MySQL/MariaDB) atau siapkan file `database/database.sqlite`.
+- Jalankan migrasi dan seeder:
+
+```bash
 php artisan migrate --seed
+```
 
-Jika berhasil, Anda akan melihat tabel-tabel baru muncul di meetly_db melalui phpMyAdmin.
+## Menjalankan Proyek (Dev & SSR)
 
-Menjalankan Proyek
-Proyek ini menggunakan concurrently untuk menjalankan semua layanan yang dibutuhkan secara bersamaan.
+Mode development (menjalankan beberapa proses sekaligus):
 
-Buka Terminal di direktori proyek.
-
-Jalankan perintah berikut:
-
+```bash
 composer run dev
+```
 
-Perintah ini akan menjalankan:
+Yang berjalan:
 
-Server PHP Laravel (php artisan serve) di http://12-7.0.0.1:8000
+- Laravel dev server: http://127.0.0.1:8000
+- Vite dev server: http://localhost:5173
+- Queue listener: `php artisan queue:listen`
+- Pail (log): `php artisan pail`
 
-Server Vite untuk aset frontend (npm run dev) di http://localhost:5173
+Server-side rendering (opsional, bila dibutuhkan):
 
-Proses antrian (queue:listen)
+```bash
+composer run dev:ssr
+```
 
-Logging (pail)
+Build aset untuk produksi:
 
-Buka http://127.0.0.1:8000 di browser Anda untuk melihat aplikasi berjalan.
+```bash
+npm run build
+```
 
-Alur Kerja Kolaborasi (Git Workflow)
-Untuk menjaga agar riwayat Git tetap bersih dan teratur, ikuti alur kerja berikut:
+## Testing
 
-Selalu Update Branch main: Sebelum mulai mengerjakan fitur baru, pastikan branch main lokal Anda sudah yang terbaru.
+Pest sudah terpasang. Jalankan:
 
+```bash
+composer test
+```
+
+## Linting & Formatting
+
+- PHP (Pint):
+
+```bash
+php artisan pint
+```
+
+- JavaScript/TypeScript/Vue:
+
+```bash
+npm run lint      # ESLint (dengan --fix)
+npm run format    # Prettier write
+npm run format:check
+```
+
+## Struktur Proyek (ringkas)
+
+- `app/` – Kode backend Laravel (Controllers, Models, Providers)
+- `resources/js/` – Frontend Inertia + Vue (components, pages, layouts)
+- `resources/css/` – Style (Tailwind)
+- `routes/` – Rute Laravel (`web.php`, `auth.php`, `settings.php`)
+- `tests/` – Pengujian dengan Pest (Feature & Unit)
+- `config/` – Konfigurasi Laravel & paket
+
+## Alur Kerja Git (ringkas)
+
+```bash
+# Update branch main
 git checkout main
 git pull origin main
 
-Buat Branch Baru: Buat branch baru dari main untuk setiap fitur atau perbaikan yang akan Anda kerjakan. Gunakan format penamaan feature/nama-fitur atau bugfix/deskripsi-bug.
+# Buat branch fitur
+git checkout -b feature/nama-fitur
 
-# Contoh untuk fitur login
-git checkout -b feature/login-page
-
-Kerjakan & Commit: Lakukan perubahan pada kode Anda. Lakukan commit secara berkala dengan pesan yang jelas dan deskriptif.
-
+# Commit teratur
 git add .
-git commit -m "feat: Menambahkan form login dan validasi dasar"
+git commit -m "feat: deskripsi singkat perubahan"
 
-Push Branch Anda: Setelah selesai, push branch Anda ke repositori remote.
+# Push & buka Pull Request
+git push origin feature/nama-fitur
+```
 
-git push origin feature/login-page
+Hindari push langsung ke `main`. Gunakan PR agar kode direview terlebih dahulu.
 
-Buat Pull Request (PR): Buka repositori di GitHub/GitLab, dan buat Pull Request dari branch Anda ke branch main. Tugaskan anggota tim lain untuk me-review kode Anda.
+## Lisensi
 
-Jangan Push Langsung ke main: Semua perubahan harus melalui Pull Request yang sudah disetujui.
-
-Aturan Penulisan Kode (Coding Style)
-Proyek ini menggunakan Laravel Pint untuk menjaga konsistensi format kode PHP. Sebelum melakukan commit, pastikan untuk menjalankan perintah berikut untuk merapikan kode Anda secara otomatis:
-
-php artisan pint
+MIT License.
