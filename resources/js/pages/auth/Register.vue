@@ -37,7 +37,7 @@ const submit = () => {
             </div>
 
             <!-- Register Form -->
-            <form @submit.prevent="submit" class="space-y-6">
+            <form @submit.prevent="submit" class="space-y-6" action="{{ route('register') }}" method="POST">
                 <!-- Name -->
                 <div>
                     <label
@@ -129,6 +129,7 @@ const submit = () => {
                         autocomplete="new-password"
                         class="w-full rounded-lg border border-gray-300 px-4 py-3 placeholder-gray-400 shadow-sm focus:border-transparent focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
                         placeholder="Confirm your password"
+                        name="password_confirmation"
                     />
                     <div
                         v-if="form.errors.password_confirmation"
