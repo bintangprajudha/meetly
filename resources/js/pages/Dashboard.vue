@@ -2,6 +2,15 @@
 import { Head, Link } from '@inertiajs/vue3';
 import { ref } from 'vue';
 
+// Define props
+const props = defineProps<{
+    user: {
+        id: number;
+        name: string;
+        email: string;
+    }
+}>();
+
 const activeTab = ref(0);
 
 const navigationItems = [
@@ -65,7 +74,7 @@ const navigationItems = [
                 <div class="flex flex-col space-y-3">
                     <!-- Profile -->
                     <div class="w-10 h-10 bg-gray-200 rounded-xl flex items-center justify-center text-gray-700 font-medium text-sm">
-                        U
+                        {{ props.user?.name?.charAt(0).toUpperCase() || 'G' }}
                     </div>
                 </div>
             </div>
@@ -95,10 +104,19 @@ const navigationItems = [
                             </div>
                             <!-- Notifications -->
                             <button class="p-2 text-gray-600 hover:text-black hover:bg-gray-100 rounded-lg transition-colors">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-5 5-5-5h5z"></path>
-                                </svg>
+                                <span class="border-r-2 pr-2">
+                                    {{ props.user?.name || 'Guest' }}
+                                </span>
                             </button>
+                            <!-- Logout -->
+                            <Link
+                                href="/logout" 
+                                method="post"
+                                as="button"
+                                class="px-4 py-2 text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
+                            >
+                                Logout
+                            </Link>
                         </div>
                     </div>
                 </div>
