@@ -1,6 +1,24 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import { ref } from 'vue';
+import PostModal from '@/components/PostModal.vue';
+import PostCard from '@/components/PostCard.vue';
+import { dashboard } from '@/routes';
+
+// Define types
+interface Post {
+    id: number;
+    content: string;
+    image_url?: string;
+    likes_count: number;
+    replies_count: number;
+    created_at: string;
+    user: {
+        id: number;
+        name: string;
+        email: string;
+    };
+}
 
 // Define props
 const props = defineProps<{
@@ -8,10 +26,12 @@ const props = defineProps<{
         id: number;
         name: string;
         email: string;
-    }
+    };
+    posts: Post[];
 }>();
 
 const activeTab = ref(0);
+const showPostModal = ref(false);
 
 const navigationItems = [
     {
@@ -25,6 +45,11 @@ const navigationItems = [
         active: false
     },
     {
+        name: 'Posts',
+        icon: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z',
+        active: false
+    },
+    {
         name: 'Users',
         icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z',
         active: false
@@ -35,6 +60,24 @@ const navigationItems = [
         active: false
     }
 ];
+
+const handlePostCreated = () => {
+    // Post akan otomatis ter-refresh karena Inertia akan reload halaman
+};
+
+const handleDeletePost = async (postId: number) => {
+    try {
+        await router.delete(`/posts/${postId}`, {
+            preserveState: false, // Refresh halaman setelah delete
+        });
+    } catch (error) {
+        console.error('Error deleting post:', error);
+    }
+};
+
+const openPostModal = () => {
+    showPostModal.value = true;
+};
 </script>
 
 <template>
@@ -45,7 +88,7 @@ const navigationItems = [
         <div class="fixed left-0 top-0 z-50 h-full w-16 bg-white shadow-lg border-r border-gray-200">
             <div class="flex flex-col items-center py-4 space-y-4">
                 <!-- Logo/Brand -->
-                <Link href="/" class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-lg hover:bg-blue-700 transition-colors">
+                <Link href="/dashboard" class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-lg hover:bg-blue-700 transition-colors">
                     M
                 </Link>
                 
@@ -68,6 +111,21 @@ const navigationItems = [
                         </button>
                     </template>
                 </nav>
+
+
+
+                <!-- Post Button -->
+                <div class="mt-4">
+                    <button 
+                        @click="openPostModal"
+                        class="w-10 h-10 bg-blue-500 hover:bg-blue-600 text-white rounded-xl flex items-center justify-center transition-colors shadow-lg"
+                        title="Create Post"
+                    >
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                        </svg>
+                    </button>
+                </div>
                 
                 <!-- Bottom Actions -->
                 <div class="flex-1"></div>
@@ -102,12 +160,12 @@ const navigationItems = [
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                                 </svg>
                             </div>
-                            <!-- Notifications -->
-                            <button class="p-2 text-gray-600 hover:text-black hover:bg-gray-100 rounded-lg transition-colors">
+                            <!-- User Profile Link -->
+                            <Link :href="`/${props.user?.name}`" class="p-2 text-gray-600 hover:text-black hover:bg-gray-100 rounded-lg transition-colors">
                                 <span class="border-r-2 pr-2">
                                     {{ props.user?.name || 'Guest' }}
                                 </span>
-                            </button>
+                            </Link>
                             <!-- Logout -->
                             <Link
                                 href="/logout" 
@@ -124,8 +182,61 @@ const navigationItems = [
 
             <!-- Dashboard Content -->
             <main class="p-6">
-                
+                <!-- Welcome Message -->
+                <div class="mb-6">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-2">Welcome back, {{ props.user.name }}!</h2>
+                    <p class="text-gray-600">Here are your recent posts and updates.</p>
+                </div>
+
+                <!-- Quick Post Button (Desktop) -->
+                <div class="mb-6 md:hidden">
+                    <button 
+                        @click="openPostModal"
+                        class="w-full py-3 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors"
+                    >
+                        What's happening?
+                    </button>
+                </div>
+
+                <!-- Posts Feed -->
+                <div class="max-w-2xl mx-auto">
+                    <!-- Posts List -->
+                    <div v-if="props.posts.length > 0" class="space-y-4">
+                        <PostCard
+                            v-for="post in props.posts"
+                            :key="post.id"
+                            :post="post"
+                            :current-user="props.user"
+                            @delete="handleDeletePost"
+                        />
+                    </div>
+
+                    <!-- Empty State -->
+                    <div v-else class="text-center py-12">
+                        <div class="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                            <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                            </svg>
+                        </div>
+                        <h3 class="text-lg font-medium text-gray-900 mb-2">No posts yet</h3>
+                        <p class="text-gray-500 mb-4">Be the first to share something with the community!</p>
+                        <button 
+                            @click="openPostModal"
+                            class="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors"
+                        >
+                            Create your first post
+                        </button>
+                    </div>
+                </div>
             </main>
+
+            <!-- Post Modal -->
+            <PostModal
+                :is-open="showPostModal"
+                :user="props.user"
+                @close="showPostModal = false"
+                @posted="handlePostCreated"
+            />
         </div>
     </div>
 </template>
