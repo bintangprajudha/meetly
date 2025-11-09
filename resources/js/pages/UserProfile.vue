@@ -2,16 +2,45 @@
     <Head :title="`@${profileUser.name} - Profile`" />
 
     <div class="min-h-screen bg-gray-50">
+        <div class="fixed left-0 top-0 z-50 h-screen w-16 bg-white shadow-lg border-r border-gray-200">
+            <div class="flex flex-col h-full py-4">
+                <!-- Logo/Brand (top) -->
+                <div class="flex items-center justify-center">
+                    <Link href="/dashboard" class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-lg hover:bg-blue-700 transition-colors">
+                        M
+                    </Link>
+                </div>
+
+                <!-- Centered nav area -->
+                <div class="flex-1 flex items-center justify-center">
+                    <nav class="flex flex-col space-y-3 items-center">
+                        <!-- Profile (authenticated user) -->
+                        <div class="mt-2" v-if="$page.props.auth && $page.props.auth.user">
+                            <Link :href="`/${$page.props.auth.user.name}`" class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-medium text-sm flex-shrink-0 hover:bg-blue-600 transition-colors">
+                                {{ $page.props.auth.user.name.charAt(0).toUpperCase() }}
+                            </Link>
+                        </div>
+                        <!-- Create Post -->
+                        <div>
+                            <button 
+                                @click="openPostModal"
+                                class="w-10 h-10 bg-blue-500 hover:bg-blue-600 text-white rounded-xl flex items-center justify-center transition-colors shadow-lg"
+                                title="Create Post"
+                            >
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    </nav>
+                </div>
+            </div>
+        </div>
         <!-- Header Navigation -->
         <header class="bg-white shadow-sm border-b border-gray-200">
             <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="flex items-center justify-between h-16">
-                    <div class="flex items-center space-x-4">
-                        <Link href="/dashboard" class="text-blue-600 hover:text-blue-800 transition-colors">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-                            </svg>
-                        </Link>
+                    <div class="flex items-center space-x-4">                       
                         <h1 class="text-xl font-semibold text-gray-900">Profile</h1>
                     </div>
                     
@@ -35,58 +64,50 @@
             </div>
         </header>
 
-        <!-- Main Content -->
-        <main class="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+    <!-- Main Content -->
+    <main class="max-w-2xl mx-auto py-8 px-8 sm:px-6 lg:px-8 md:px-10">
             <!-- Profile Header -->
             <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden mb-8">
-                <!-- Cover/Background -->
-                <div class="h-32 bg-gradient-to-r from-blue-500 to-purple-600"></div>
+                
+                
                 
                 <!-- Profile Info -->
                 <div class="px-6 py-6">
-                    <div class="flex items-start justify-between">
-                        <div class="flex items-center space-x-4">
+                    <div class="flex items-center justify-start space-x-10">
+                        
                             <!-- Profile Avatar -->
-                            <div class="w-20 h-20 -mt-10 bg-white rounded-full border-4 border-white shadow-lg flex items-center justify-center text-2xl font-bold text-gray-600" 
+                            <div class="w-40 h-40 mt-5 bg-white rounded-full border-4 border-white shadow-lg flex items-center justify-center text-2xl font-bold text-gray-600" 
                                  :style="{ backgroundColor: getAvatarColor(profileUser.name) }">
                                 {{ getInitials(profileUser.name) }}
                             </div>
                             
                             <!-- User Info -->
-                            <div class="pt-2">
+                            <div class="pt-5">
                                 <h1 class="text-2xl font-bold text-gray-900">{{ profileUser.name }}</h1>
                                 <p class="text-gray-600">@{{ profileUser.name }}</p>
                                 <p class="text-gray-500 mt-1">{{ profileUser.email }}</p>
+                                <!-- Stats -->
+                                <div class="flex items-center space-x-8 mt-0 pt-6">                                    
+                                    <div class="text-center flex justify-evenly items-center gap-2">
+                                        <p class="text-md font-bold text-gray-900">0</p>
+                                        <p class="text-gray-600 text-sm">Followers</p>
+                                    </div>
+                                    <div class="text-center flex justify-evenly items-center gap-2">
+                                        <p class="text-md font-bold text-gray-900">0</p>
+                                        <p class="text-gray-600 text-sm">Following</p>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-
-                        <!-- Follow Button (placeholder for future) -->
-                        <div v-if="$page.props.auth.user && $page.props.auth.user.id !== profileUser.id" class="pt-2">
-                            <button class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">
-                                Follow
-                            </button>
-                        </div>
+                        
                     </div>
+                    <!-- Follow Button (placeholder for future) -->
+                    <!-- <div v-if="$page.props.auth.user && $page.props.auth.user.id !== profileUser.id" class="pt-2">
+                        <button class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">
+                            Follow
+                        </button>
+                    </div> -->
 
-                    <!-- Stats -->
-                    <div class="flex items-center space-x-8 mt-6 pt-6 border-t border-gray-200">
-                        <div class="text-center">
-                            <p class="text-2xl font-bold text-gray-900">{{ postsCount }}</p>
-                            <p class="text-gray-600 text-sm">Posts</p>
-                        </div>
-                        <div class="text-center">
-                            <p class="text-2xl font-bold text-gray-900">0</p>
-                            <p class="text-gray-600 text-sm">Following</p>
-                        </div>
-                        <div class="text-center">
-                            <p class="text-2xl font-bold text-gray-900">0</p>
-                            <p class="text-gray-600 text-sm">Followers</p>
-                        </div>
-                        <div class="text-center">
-                            <p class="text-2xl font-bold text-gray-900">0</p>
-                            <p class="text-gray-600 text-sm">Likes</p>
-                        </div>
-                    </div>
+                    
 
                     <!-- Bio (placeholder) -->
                     <div class="mt-6">
@@ -98,6 +119,11 @@
                             <span>🗓️ Joined {{ formatJoinDate(profileUser.created_at) }}</span>
                         </div>
                     </div>
+
+                    <div class="mt-6">
+                        <button class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">Follow</button>
+                    </div>
+
                 </div>
             </div>
 
