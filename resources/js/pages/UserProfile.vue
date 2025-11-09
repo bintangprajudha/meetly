@@ -17,15 +17,19 @@
                     
                     <!-- User Actions -->
                     <div v-if="$page.props.auth.user" class="flex items-center space-x-4">
-                        <span class="text-gray-600">{{ $page.props.auth.user.name }}</span>
-                        <Link
-                            href="/logout" 
-                            method="post"
-                            as="button"
-                            class="px-4 py-2 text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors text-sm"
-                        >
-                            Logout
-                        </Link>
+                        <!-- Use a guarded, strict ID comparison to determine if the current user
+                             is viewing their own profile. This is safer than comparing names. -->
+                        <template v-if="$page.props.auth.user && profileUser && $page.props.auth.user.id === profileUser.id">
+                            <span class="text-gray-600">{{ $page.props.auth.user.name }}</span>
+                            <Link
+                                href="/logout" 
+                                method="post"
+                                as="button"
+                                class="px-4 py-2 text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors text-sm"
+                            >
+                                Logout
+                            </Link>
+                        </template>
                     </div>
                 </div>
             </div>
