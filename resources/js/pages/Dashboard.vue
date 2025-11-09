@@ -56,9 +56,9 @@ const openPostModal = () => {
 <template>
     <Head title="Dashboard" />
 
-    <div class="flex min-h-screen bg-gray-50">
+    <div class="flex min-h-screen w-screen bg-gray-50">
         <!-- Sidebar Kiri dengan Icon -->
-        <div class="fixed left-0 top-0 z-50 h-full w-16 bg-white shadow-lg border-r border-gray-200">
+    <div class="fixed left-0 top-0 z-50 h-screen w-16 bg-white shadow-lg border-r border-gray-200">
             <div class="flex flex-col h-full py-4">
                 <!-- Logo/Brand (top) -->
                 <div class="flex items-center justify-center">
@@ -70,18 +70,11 @@ const openPostModal = () => {
                 <!-- Centered nav area -->
                 <div class="flex-1 flex items-center justify-center">
                     <nav class="flex flex-col space-y-3 items-center">
-                        <!-- Profile (current user) -->
+                        <!-- Profile (authenticated user) -->
                         <div class="mt-2">
-                            <template v-if="props.user && props.user.name">
-                                <Link :href="`/${props.user.name}`" class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-medium text-sm flex-shrink-0 hover:bg-blue-600 transition-colors">
-                                    {{ props.user.name.charAt(0).toUpperCase() }}
-                                </Link>
-                            </template>
-                            <template v-else>
-                                <div class="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center text-gray-700 font-medium text-sm flex-shrink-0">
-                                    G
-                                </div>
-                            </template>
+                            <Link :href="`/${$page.props.auth.user.name}`" class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-medium text-sm flex-shrink-0 hover:bg-blue-600 transition-colors">
+                                {{ $page.props.auth.user.name.charAt(0).toUpperCase() }}
+                            </Link>
                         </div>
 
                         <!-- Create Post -->
@@ -100,21 +93,22 @@ const openPostModal = () => {
                 </div>
 
             </div>
-        </div>
+    </div>
 
         <!-- Main Content Area -->
-        <div class="flex-1 ml-16">
-            <!-- Header -->
-            <header class="bg-white shadow-sm border-b border-gray-200">
-                <div class="px-6 py-4">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <h1 class="text-2xl font-bold text-gray-900">Dashboard</h1>
-                            
-                        </div>
-                        <div class="flex items-center space-x-4">
-                            <!-- Search -->
-                            <div class="relative">
+        
+    <div class="flex flex-col flex-1 ml-16">
+            <!-- Header Navigation -->
+        <header class="bg-white shadow-sm border-b border-gray-200">
+            <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex items-center justify-between h-16">
+                    <div class="flex items-center space-x-4">
+                        <h1 class="text-xl font-semibold text-gray-900">Dashboard</h1>
+                    </div>
+                    
+                    <!-- User Actions -->
+                    <div>
+                        <div class="relative">
                                 <input 
                                     type="text" 
                                     placeholder="Search..."
@@ -124,16 +118,16 @@ const openPostModal = () => {
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                                 </svg>
                             </div>                            
-                        </div>
                     </div>
                 </div>
-            </header>
+            </div>
+        </header>
 
             <!-- Dashboard Content -->
-            <main class="p-6">
+            <main class="p-6 flex-1 overflow-auto">
                 <div class="max-w-2xl mx-auto">
                     <!-- Posts List -->
-                    <div v-if="props.posts.length > 0" class="space-y-4">
+                    <div v-if="props.posts.length > 0" class="space-y-4 max-w-3xl">
                         <PostCard
                             v-for="post in props.posts"
                             :key="post.id"
