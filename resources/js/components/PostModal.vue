@@ -64,7 +64,7 @@ const handleKeydown = (event: KeyboardEvent) => {
 
 <template>
     <div 
-        v-if="isOpen" 
+        v-if="props.isOpen" 
         class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
         @click.self="closeModal"
         @keydown="handleKeydown"

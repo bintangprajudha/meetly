@@ -1,15 +1,4 @@
 <script setup lang="ts">
-import { usePage, Link } from '@inertiajs/vue3';
-import { computed } from 'vue';
-
-const page = usePage();
-
-// Definisikan tipe untuk user yang sedang login dan user profil
-interface User {
-  id: number;
-  name: string;
-  email?: string;
-}
 
 </script>
 
