@@ -1,71 +1,115 @@
+<script setup lang="ts">
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { ref } from 'vue';
+import PostModal from '@/components/PostModal.vue';
+import PostCard from '@/components/PostCard.vue';
+import AppSidebarLayout from '@/layouts/app/AppSidebarLayout.vue';
+import AppHeaderLayout from '@/layouts/app/AppHeaderLayout.vue';
+
+// Define types
+interface Post {
+    id: number;
+    content: string;
+    image_url?: string;
+    likes_count: number;
+    replies_count: number;
+    created_at: string;
+    user: {
+        id: number;
+        name: string;
+        email: string;
+    };
+}
+
+// Define props (accept either `user` or `profileUser` depending on server payload)
+const props = defineProps<{
+    user?: {
+        id: number;
+        name: string;
+        email: string;
+        created_at?: string;
+    };
+    profileUser?: {
+        id: number;
+        name: string;
+        email: string;
+        created_at?: string;
+    };
+    posts: Post[];
+}>();
+
+// Normalize profile user: some controllers send `profileUser`, others `user`.
+const profileUser = (props.user ?? (props as any).profileUser) as { id: number; name: string; email?: string; created_at?: string };
+
+// Authenticated user from Inertia page props
+const page = usePage();
+const pageTyped = page as unknown as { props: { auth?: { user?: { id: number; name: string; email?: string } } } };
+const authUser = pageTyped.props.auth?.user ?? null;
+
+const showPostModal = ref(false);
+
+const handlePostCreated = () => {
+    // Page will reload via Inertia redirect in controller
+};
+
+const openPostModal = () => {
+    showPostModal.value = true;
+};
+
+// Handle post deletion
+const handleDeletePost = async (postId: number) => {
+    try {
+        await router.delete(`/posts/${postId}`, {
+            preserveState: false,
+        });
+    } catch (error) {
+        console.error('Error deleting post:', error);
+        alert('Error deleting post. Please try again.');
+    }
+};
+
+
+
+// Helper function to get user initials
+const getInitials = (name : string) => {
+    if (!name) return 'U';
+    return name.split(' ')
+        .map(word => word.charAt(0))
+        .join('')
+        .toUpperCase()
+        .slice(0, 2);
+};
+
+// Helper function to get avatar color
+const getAvatarColor = (name : string) => {
+    if (!name) return '#6B7280';
+    
+    const colors = [
+        '#EF4444', '#F97316', '#F59E0B', '#EAB308', 
+        '#84CC16', '#22C55E', '#10B981', '#14B8A6',
+        '#06B6D4', '#0EA5E9', '#3B82F6', '#6366F1',
+        '#8B5CF6', '#A855F7', '#D946EF', '#EC4899',
+    ];
+    
+    const hash = name.split('').reduce((acc, char) => {
+        return acc + char.charCodeAt(0);
+    }, 0);
+    
+    return colors[hash % colors.length];
+};
+
+
+
+
+</script>
+
 <template>
-    <Head :title="`@${profileUser.name} - Profile`" />
+  <Head :title="'/' + (props.user?.name ?? 'Profile')" />
 
-    <div class="min-h-screen bg-gray-50">
-        <div class="fixed left-0 top-0 z-50 h-screen w-16 bg-white shadow-lg border-r border-gray-200">
-            <div class="flex flex-col h-full py-4">
-                <!-- Logo/Brand (top) -->
-                <div class="flex items-center justify-center">
-                    <Link href="/dashboard" class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-lg hover:bg-blue-700 transition-colors">
-                        M
-                    </Link>
-                </div>
+  <AppSidebarLayout @open-post="openPostModal">
+    <AppHeaderLayout>
 
-                <!-- Centered nav area -->
-                <div class="flex-1 flex items-center justify-center">
-                    <nav class="flex flex-col space-y-3 items-center">
-                        <!-- Profile (authenticated user) -->
-                        <div class="mt-2" v-if="$page.props.auth && $page.props.auth.user">
-                            <Link :href="`/${$page.props.auth.user.name}`" class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-medium text-sm flex-shrink-0 hover:bg-blue-600 transition-colors">
-                                {{ $page.props.auth.user.name.charAt(0).toUpperCase() }}
-                            </Link>
-                        </div>
-                        <!-- Create Post -->
-                        <div>
-                            <button 
-                                @click="openPostModal"
-                                class="w-10 h-10 bg-blue-500 hover:bg-blue-600 text-white rounded-xl flex items-center justify-center transition-colors shadow-lg"
-                                title="Create Post"
-                            >
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                                </svg>
-                            </button>
-                        </div>
-                    </nav>
-                </div>
-            </div>
-        </div>
-        <!-- Header Navigation -->
-        <header class="bg-white shadow-sm border-b border-gray-200">
-            <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="flex items-center justify-between h-16">
-                    <div class="flex items-center space-x-4">                       
-                        <h1 class="text-xl font-semibold text-gray-900">Profile</h1>
-                    </div>
-                    
-                    <!-- User Actions -->
-                    <div v-if="$page.props.auth.user" class="flex items-center space-x-4">
-                        <!-- Use a guarded, strict ID comparison to determine if the current user
-                             is viewing their own profile. This is safer than comparing names. -->
-                        <template v-if="$page.props.auth.user && profileUser && $page.props.auth.user.id === profileUser.id">
-                            <span class="text-gray-600">{{ $page.props.auth.user.name }}</span>
-                            <Link
-                                href="/logout" 
-                                method="post"
-                                as="button"
-                                class="px-4 py-2 text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors text-sm"
-                            >
-                                Logout
-                            </Link>
-                        </template>
-                    </div>
-                </div>
-            </div>
-        </header>
-
-    <!-- Main Content -->
-    <main class="max-w-2xl mx-auto py-8 px-8 sm:px-6 lg:px-8 md:px-10">
+      <main class="max-w-2xl mx-auto py-8 px-8 sm:px-6 lg:px-8 md:px-10">
             <!-- Profile Header -->
             <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden mb-8">
                 
@@ -114,13 +158,10 @@
                         <p class="text-gray-700">
                             Welcome to my profile! I love sharing thoughts and connecting with others.
                         </p>
-                        <div class="flex items-center space-x-4 mt-2 text-gray-500 text-sm">
-                            <span>📍 Location</span>
-                            <span>🗓️ Joined {{ formatJoinDate(profileUser.created_at) }}</span>
-                        </div>
+                        
                     </div>
 
-                    <div class="mt-6">
+                    <div v-if="$page.props.auth.user && $page.props.auth.user.id !== profileUser.id" class="mt-6" >
                         <button class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">Follow</button>
                     </div>
 
@@ -134,12 +175,12 @@
                 </div>
 
                 <!-- Posts List -->
-                <div v-if="posts.length > 0" class="divide-y divide-gray-200">
+                <div v-if="props.posts.length > 0" class="divide-y divide-gray-200">
                     <PostCard
-                        v-for="post in posts"
+                        v-for="post in props.posts"
                         :key="post.id"
                         :post="post"
-                        :current-user="$page.props.auth.user"
+                        :current-user="authUser as any"
                         @delete="handleDeletePost"
                         class="border-none"
                     />
@@ -157,82 +198,13 @@
                 </div>
             </div>
         </main>
-    </div>
+
+            <PostModal
+                :is-open="showPostModal"
+                :user="authUser as any"
+                @close="showPostModal = false"
+                @posted="handlePostCreated"
+            />
+    </AppHeaderLayout>
+  </AppSidebarLayout>
 </template>
-
-<script setup>
-import { Head, Link } from '@inertiajs/vue3';
-import { router } from '@inertiajs/vue3';
-import PostCard from '../components/PostCard.vue';
-
-// Define props
-const props = defineProps({
-    profileUser: {
-        type: Object,
-        required: true
-    },
-    posts: {
-        type: Array,
-        default: () => []
-    },
-    postsCount: {
-        type: Number,
-        default: 0
-    }
-});
-
-// Helper function to get user initials
-const getInitials = (name) => {
-    if (!name) return 'U';
-    return name.split(' ')
-        .map(word => word.charAt(0))
-        .join('')
-        .toUpperCase()
-        .slice(0, 2);
-};
-
-// Helper function to get avatar color
-const getAvatarColor = (name) => {
-    if (!name) return '#6B7280';
-    
-    const colors = [
-        '#EF4444', '#F97316', '#F59E0B', '#EAB308', 
-        '#84CC16', '#22C55E', '#10B981', '#14B8A6',
-        '#06B6D4', '#0EA5E9', '#3B82F6', '#6366F1',
-        '#8B5CF6', '#A855F7', '#D946EF', '#EC4899',
-    ];
-    
-    const hash = name.split('').reduce((acc, char) => {
-        return acc + char.charCodeAt(0);
-    }, 0);
-    
-    return colors[hash % colors.length];
-};
-
-// Helper function to format join date
-const formatJoinDate = (dateString) => {
-    const date = new Date(dateString);
-    const options = { 
-        year: 'numeric', 
-        month: 'long' 
-    };
-    return date.toLocaleDateString('en-US', options);
-};
-
-// Handle post deletion
-const handleDeletePost = (postId) => {
-    if (confirm('Are you sure you want to delete this post?')) {
-        router.delete(`/posts/${postId}`, {
-            preserveScroll: true,
-            onSuccess: () => {
-                // Reload page to update posts
-                router.reload({ only: ['posts', 'postsCount'] });
-            },
-            onError: (error) => {
-                console.error('Error deleting post:', error);
-                alert('Error deleting post. Please try again.');
-            }
-        });
-    }
-};
-</script>

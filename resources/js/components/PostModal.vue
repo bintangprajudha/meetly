@@ -17,9 +17,7 @@ const emit = defineEmits<{
 }>();
 
 const content = ref('');
-const imageUrl = ref('');
 const isSubmitting = ref(false);
-
 const characterCount = computed(() => content.value.length);
 const isOverLimit = computed(() => characterCount.value > 280);
 const canPost = computed(() => content.value.trim().length > 0 && !isOverLimit.value && !isSubmitting.value);
@@ -32,12 +30,10 @@ const submitPost = async () => {
     try {
         await router.post('/posts', {
             content: content.value.trim(),
-            image_url: imageUrl.value.trim() || null,
         }, {
             preserveState: false, // Refresh halaman untuk menampilkan post baru
             onSuccess: () => {
                 content.value = '';
-                imageUrl.value = '';
                 emit('posted');
                 emit('close');
             },
