@@ -25,21 +25,23 @@ class PostController extends Controller
 
     public function store(Request $request)
     {
-        $request->validate([
+        // Validate and use the validated data array to avoid accessing missing properties
+        $validated = $request->validate([
             'content' => 'required|string|max:280',
             'image_url' => 'nullable|url',
         ]);
 
         $post = Post::create([
             'user_id' => Auth::id(),
-            'content' => $request->content,
-            'image_url' => $request->image_url,
+            'content' => $validated['content'],
+            'image_url' => $validated['image_url'] ?? null,
         ]);
 
         Log::info('Post created successfully', [
             'post_id' => $post->id,
             'user_id' => Auth::id(),
-            'content_length' => strlen($request->content),
+            // cast to string to avoid strlen(null) TypeError
+            'content_length' => strlen((string) ($validated['content'] ?? '')),
         ]);
 
         return redirect()->back()->with('success', 'Post created successfully!');
