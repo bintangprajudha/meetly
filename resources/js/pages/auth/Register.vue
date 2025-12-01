@@ -1,13 +1,19 @@
 <script setup lang="ts">
+import { ref } from 'vue';
 import AuthLayout from '@/layouts/AuthLayout.vue';
 import { Link, useForm } from '@inertiajs/vue3';
 
 const form = useForm({
-    name: '',
+    first_name: '',
+    last_name: '',
     email: '',
+    phone: '',
     password: '',
     password_confirmation: '',
+    terms: false,
 });
+
+const showPassword = ref(false);
 
 const submit = () => {
     form.post('/register', {
@@ -17,202 +23,124 @@ const submit = () => {
 </script>
 
 <template>
-    <AuthLayout title="Register">
-        <div class="rounded-lg bg-white px-6 py-8 shadow-lg dark:bg-gray-800">
-            <!-- Header -->
-            <div class="mb-8 text-center">
-                <Link href="/" class="mb-4 inline-block">
-                    <img
-                        src="https://tailwindcss.com/plus-assets/img/logos/mark.svg?color=indigo&shade=600"
-                        alt="Meetly"
-                        class="mx-auto h-12 w-auto"
-                    />
-                </Link>
-                <h2 class="text-2xl font-bold text-gray-900 dark:text-white">
-                    Create your account
-                </h2>
-                <p class="mt-2 text-gray-600 dark:text-gray-400">
-                    Join us today and get started
-                </p>
+<AuthLayout>
+
+    <!-- CARD FORM BESAR -->
+    <div class="bg-white rounded-xl shadow-lg p-12 w-full max-w-2xl mx-auto">
+
+        <h2 class="text-2xl font-bold text-gray-900">Daftarkan Akunmu</h2>
+        <p class="mt-1 text-gray-600 mb-6">
+            Lengkapi data di bawah ini untuk mendaftarkan akunmu
+        </p>
+
+        <form @submit.prevent="submit" class="space-y-4">
+
+            <!-- NAMA DEPAN / BELAKANG -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="text-sm text-gray-700">Nama Depan</label>
+                    <input v-model="form.first_name" type="text" required
+                        class="w-full rounded-lg border border-gray-300 px-3 py-2 text-black shadow-sm focus:border-red-500 focus:ring-red-500"
+                        placeholder="Nama Depan">
+                    <div v-if="form.errors.first_name" class="text-sm text-red-600">{{ form.errors.first_name }}</div>
+                </div>
+
+                <div>
+                    <label class="text-sm text-gray-700">Nama Belakang</label>
+                    <input v-model="form.last_name" type="text" required
+                        class="w-full rounded-lg border border-gray-300 px-3 py-2 text-black shadow-sm focus:border-red-500 focus:ring-red-500"
+                        placeholder="Nama Belakang">
+                    <div v-if="form.errors.last_name" class="text-sm text-red-600">{{ form.errors.last_name }}</div>
+                </div>
             </div>
 
-            <!-- Register Form -->
-            <form @submit.prevent="submit" class="space-y-6" action="{{ route('register') }}" method="POST">
-                <!-- Name -->
-                <div>
-                    <label
-                        for="name"
-                        class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                    >
-                        Full Name
-                    </label>
-                    <input
-                        id="name"
-                        v-model="form.name"
-                        type="text"
-                        required
-                        autocomplete="name"
-                        class="w-full rounded-lg border border-gray-300 px-4 py-3 placeholder-gray-400 shadow-sm focus:border-transparent focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
-                        placeholder="Enter your full name"
-                    />
-                    <div
-                        v-if="form.errors.name"
-                        class="mt-2 text-sm text-red-600"
-                    >
-                        {{ form.errors.name }}
-                    </div>
-                </div>
-
-                <!-- Email -->
-                <div>
-                    <label
-                        for="email"
-                        class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                    >
-                        Email address
-                    </label>
-                    <input
-                        id="email"
-                        v-model="form.email"
-                        type="email"
-                        required
-                        autocomplete="email"
-                        class="w-full rounded-lg border border-gray-300 px-4 py-3 placeholder-gray-400 shadow-sm focus:border-transparent focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
-                        placeholder="Enter your email"
-                    />
-                    <div
-                        v-if="form.errors.email"
-                        class="mt-2 text-sm text-red-600"
-                    >
-                        {{ form.errors.email }}
-                    </div>
-                </div>
-
-                <!-- Password -->
-                <div>
-                    <label
-                        for="password"
-                        class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                    >
-                        Password
-                    </label>
-                    <input
-                        id="password"
-                        v-model="form.password"
-                        type="password"
-                        required
-                        autocomplete="new-password"
-                        class="w-full rounded-lg border border-gray-300 px-4 py-3 placeholder-gray-400 shadow-sm focus:border-transparent focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
-                        placeholder="Create a password"
-                    />
-                    <div
-                        v-if="form.errors.password"
-                        class="mt-2 text-sm text-red-600"
-                    >
-                        {{ form.errors.password }}
-                    </div>
-                </div>
-
-                <!-- Confirm Password -->
-                <div>
-                    <label
-                        for="password_confirmation"
-                        class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                    >
-                        Confirm Password
-                    </label>
-                    <input
-                        id="password_confirmation"
-                        v-model="form.password_confirmation"
-                        type="password"
-                        required
-                        autocomplete="new-password"
-                        class="w-full rounded-lg border border-gray-300 px-4 py-3 placeholder-gray-400 shadow-sm focus:border-transparent focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
-                        placeholder="Confirm your password"
-                        name="password_confirmation"
-                    />
-                    <div
-                        v-if="form.errors.password_confirmation"
-                        class="mt-2 text-sm text-red-600"
-                    >
-                        {{ form.errors.password_confirmation }}
-                    </div>
-                </div>
-
-                <!-- Submit Button -->
-                <button
-                    type="submit"
-                    :disabled="form.processing"
-                    class="flex w-full justify-center rounded-lg border border-transparent bg-blue-600 px-4 py-3 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                    <svg
-                        v-if="form.processing"
-                        class="mr-3 -ml-1 h-5 w-5 animate-spin text-white"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                    >
-                        <circle
-                            class="opacity-25"
-                            cx="12"
-                            cy="12"
-                            r="10"
-                            stroke="currentColor"
-                            stroke-width="4"
-                        ></circle>
-                        <path
-                            class="opacity-75"
-                            fill="currentColor"
-                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                        ></path>
-                    </svg>
-                    <span v-if="form.processing">Creating account...</span>
-                    <span v-else>Create account</span>
-                </button>
-            </form>
-
-            <!-- Terms -->
-            <div class="mt-6 text-center">
-                <p class="text-xs text-gray-500 dark:text-gray-400">
-                    By creating an account, you agree to our
-                    <a href="#" class="text-blue-600 hover:text-blue-500"
-                        >Terms of Service</a
-                    >
-                    and
-                    <a href="#" class="text-blue-600 hover:text-blue-500"
-                        >Privacy Policy</a
-                    >
-                </p>
+            <!-- EMAIL -->
+            <div>
+                <label class="text-sm text-gray-700">Email</label>
+                <input v-model="form.email" type="email" required
+                    class="w-full rounded-lg border border-gray-300 px-3 py-2 text-black shadow-sm focus:border-red-500 focus:ring-red-500"
+                    placeholder="email@example.com">
+                <div v-if="form.errors.email" class="text-sm text-red-600">{{ form.errors.email }}</div>
             </div>
 
-            <!-- Divider -->
-            <div class="mt-6">
+            <!-- TELEPON -->
+            <div>
+                <label class="text-sm text-gray-700">Nomor Telepon</label>
+                <input v-model="form.phone" type="tel"
+                    class="w-full rounded-lg border border-gray-300 px-3 py-2 text-black shadow-sm focus:border-red-500 focus:ring-red-500"
+                    placeholder="+62 81234567890">
+                <div v-if="form.errors.phone" class="text-sm text-red-600">{{ form.errors.phone }}</div>
+            </div>
+
+            <!-- PASSWORD -->
+            <div>
+                <label class="text-sm text-gray-700">Password</label>
                 <div class="relative">
-                    <div class="absolute inset-0 flex items-center">
-                        <div
-                            class="w-full border-t border-gray-300 dark:border-gray-600"
-                        ></div>
-                    </div>
-                    <div class="relative flex justify-center text-sm">
-                        <span
-                            class="bg-white px-2 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
-                        >
-                            Already have an account?
-                        </span>
-                    </div>
+                    <input :type="showPassword ? 'text' : 'password'" v-model="form.password" required
+                        class="w-full rounded-lg border border-gray-300 px-3 py-2 pr-10 text-black shadow-sm focus:border-red-500 focus:ring-red-500"
+                        placeholder="Password">
+
+                    <button type="button" @click="showPassword = !showPassword"
+                        class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500">
+                        <svg v-if="!showPassword" class="w-5 h-5" fill="none" viewBox="0 0 24 24">
+                            <path stroke="currentColor" stroke-width="2"
+                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path stroke="currentColor" stroke-width="2"
+                                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943
+                                   9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                        <svg v-else class="w-5 h-5" fill="none" viewBox="0 0 24 24">
+                            <path stroke="currentColor" stroke-width="2"
+                                d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7
+                                   a9.963 9.963 0 012.14-3.506M6.18 6.18A9.963 9.963 0 0112 5c4.478 
+                                   0 8.268 2.943 9.542 7a9.97 9.97 0 01-1.94 3.227M3 3l18 18" />
+                        </svg>
+                    </button>
                 </div>
+                <div v-if="form.errors.password" class="text-sm text-red-600">{{ form.errors.password }}</div>
             </div>
 
-            <!-- Login Link -->
-            <div class="mt-6 text-center">
-                <Link
-                    href="/login"
-                    class="font-medium text-blue-600 transition-colors hover:text-blue-500"
-                >
-                    Sign in to your account
-                    <span aria-hidden="true"> →</span>
-                </Link>
+            <!-- CONFIRM PASSWORD -->
+            <div>
+                <label class="text-sm text-gray-700">Konfirmasi Password</label>
+                <input :type="showPassword ? 'text' : 'password'" v-model="form.password_confirmation" required
+                    class="w-full rounded-lg border border-gray-300 px-3 py-2 text-black shadow-sm focus:border-red-500 focus:ring-red-500"
+                    placeholder="Konfirmasi Password">
+                <div v-if="form.errors.password_confirmation" class="text-sm text-red-600">{{ form.errors.password_confirmation }}</div>
             </div>
+
+            <!-- TERMS -->
+            <div class="flex items-start gap-2">
+                <input type="checkbox" v-model="form.terms" class="h-4 w-4 text-red-600">
+                <label class="text-sm text-gray-700">
+                    Dengan mendaftar, saya menyetujui
+                    <a href="#" class="text-red-600 underline">Syarat & Ketentuan</a>
+                    dan
+                    <a href="#" class="text-red-600 underline">Kebijakan Privasi</a>.
+                </label>
+            </div>
+
+            <button type="submit" :disabled="form.processing"
+                class="w-full rounded-lg bg-[#e54c4c] px-4 py-3 text-white font-medium shadow hover:bg-red-700">
+                <span v-if="form.processing">Mendaftarkan...</span>
+                <span v-else>Register</span>
+            </button>
+        </form>
+
+        <!-- LINK LOGIN -->
+        <div class="mt-6 text-center">
+            <div class="flex items-center">
+                <div class="flex-1 border-t border-gray-300"></div>
+                <span class="px-3 text-gray-500 text-sm">Sudah punya akun?</span>
+                <div class="flex-1 border-t border-gray-300"></div>
+            </div>
+
+            <Link href="/login" class="mt-4 inline-block text-sm font-medium text-red-600 hover:text-red-500">
+                Masuk ke akun Anda →
+            </Link>
         </div>
-    </AuthLayout>
+
+    </div>
+
+</AuthLayout>
 </template>

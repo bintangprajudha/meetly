@@ -14,42 +14,26 @@ withDefaults(defineProps<Props>(), {
     <Head :title="title" />
 
     <div class="flex min-h-screen">
-        <!-- Left Side - Image/Branding -->
-        <div
-            class="hidden items-center justify-center bg-gradient-to-br from-blue-600 to-purple-700 lg:flex lg:w-1/2"
-        >
-            <div class="text-center text-white">
-                <h1 class="mb-4 text-4xl font-bold">Meetly</h1>
-                <p class="text-xl opacity-90">Welcome to our platform</p>
-                <div class="mt-8">
-                    <div
-                        class="mx-auto flex h-32 w-32 items-center justify-center rounded-full bg-white/10"
-                    >
-                        <svg
-                            class="h-16 w-16"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"
-                            ></path>
-                        </svg>
-                    </div>
-                </div>
+
+        <!-- LEFT SIDE (Red Panel) -->
+        <div class="hidden lg:flex lg:w-1/2 items-center justify-center bg-[#e54c4c] relative overflow-hidden">
+            
+            <!-- Logo box -->
+            <div class="w-56 h-56 bg-white rounded-xl shadow-xl flex items-center justify-center z-10">
+                <img src="Pictures/Group 1.png" alt="Logo Meetly" />
             </div>
+
+            <!-- Decorative circle -->
+            <div class="absolute -bottom-48 -right-48 w-96 h-96 bg-[#f7f3ea] rounded-full opacity-60"></div>
+
         </div>
 
-        <!-- Right Side - Form -->
-        <div
-            class="flex flex-1 items-center justify-center bg-gray-50 px-4 sm:px-6 lg:px-8 dark:bg-gray-900"
-        >
+        <!-- RIGHT SIDE (Cream Panel, slot form) -->
+        <div class="flex flex-1 items-center justify-center bg-[#f7f3ea] px-4 sm:px-6 lg:px-8">
             <div class="w-full max-w-md">
                 <slot />
             </div>
         </div>
+
     </div>
 </template>
