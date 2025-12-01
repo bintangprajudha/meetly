@@ -19,8 +19,8 @@ withDefaults(defineProps<Props>(), {
         <div class="hidden lg:flex lg:w-1/2 items-center justify-center bg-[#e54c4c] relative overflow-hidden">
             
             <!-- Logo box -->
-            <div class="w-56 h-56 bg-white rounded-xl shadow-xl flex items-center justify-center z-10">
-                <img src="Pictures/Group 1.png" alt="Logo Meetly" />
+            <div class="w-100 h-100 rounded-xl shadow-xl flex items-center justify-center z-10">
+                <img src="Group 1.png" alt="Logo Meetly" />
             </div>
 
             <!-- Decorative circle -->
