@@ -25,9 +25,17 @@ const props = defineProps<{
 
 const emit = defineEmits<{
     delete: [postId: number];
+    commented: [postId: number, comment: any];
 }>();
 
 const imageError = ref(false);
+const repliesCount = ref(props.post.replies_count || 0);
+const comments = ref((props.post as any).comments ? [...(props.post as any).comments] : []);
+const showCommentBox = ref(false);
+const commentInput = ref('');
+const posting = ref(false);
+const commentError = ref<string | null>(null);
+const abortController = ref<AbortController | null>(null);
 
 const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -55,6 +63,83 @@ const deletePost = () => {
 
 const handleImageError = () => {
     imageError.value = true;
+};
+
+const toggleCommentBox = () => {
+    showCommentBox.value = !showCommentBox.value;
+    commentError.value = null;
+};
+
+const postComment = async () => {
+    commentError.value = null;
+    const content = (commentInput.value || '').trim();
+    if (!content) {
+        commentError.value = 'Comment cannot be empty';
+        return;
+    }
+
+    posting.value = true;
+    try {
+        const metaToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+        const getCookie = (name: string) => {
+            const matches = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/([.$?*|{}()\[\]\\\/\+^])/g, '\\$1') + '=([^;]*)'));
+            return matches ? decodeURIComponent(matches[1]) : undefined;
+        };
+
+        const cookieToken = getCookie('XSRF-TOKEN');
+        const token = metaToken || cookieToken || '';
+
+        abortController.value = new AbortController();
+
+        const res = await fetch(`/posts/${props.post.id}/comments`, {
+            method: 'POST',
+            credentials: 'include',
+            signal: abortController.value.signal,
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': token,
+                'X-XSRF-TOKEN': token,
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ content })
+        });
+
+        if (!res.ok) {
+            const err = await res.json().catch(() => null);
+            commentError.value = err?.message || 'Failed to post comment';
+        } else {
+            const data = await res.json();
+            commentInput.value = '';
+            showCommentBox.value = false;
+            repliesCount.value = (repliesCount.value || 0) + 1;
+            // prepend to local comments list for immediate feedback
+            comments.value.unshift(data.comment);
+            emit('commented', props.post.id, data.comment);
+        }
+    } catch (e: any) {
+        if (e.name === 'AbortError') {
+            commentError.value = 'Comment posting cancelled';
+        } else {
+            commentError.value = 'Network error';
+        }
+    } finally {
+        posting.value = false;
+        abortController.value = null;
+    }
+};
+
+const cancelComment = () => {
+    if (posting.value && abortController.value) {
+        // abort in-progress request
+        abortController.value.abort();
+        posting.value = false;
+    } else {
+        // just close the box and clear errors
+        showCommentBox.value = false;
+        commentError.value = null;
+    }
 };
 </script>
 
@@ -88,6 +173,31 @@ const handleImageError = () => {
             </button>
         </div>
 
+        <!-- Comment Box -->
+        <div v-if="showCommentBox" class="mt-3">
+            <textarea
+                v-model="commentInput"
+                rows="3"
+                class="w-full p-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-200 bg-white text-black"
+                placeholder="Write a comment..."
+            ></textarea>
+
+            <div class="flex items-center space-x-2 mt-2">
+                <button
+                    @click="postComment"
+                    :disabled="posting"
+                    class="bg-blue-600 text-white px-3 py-1 rounded-md hover:bg-blue-700 disabled:opacity-50"
+                >
+                    <span v-if="!posting">Post</span>
+                    <span v-else>Posting...</span>
+                </button>
+
+                <button @click="cancelComment" class="px-3 py-1 rounded-md border border-gray-200 hover:bg-gray-50">Cancel</button>
+            </div>
+
+            <p v-if="commentError" class="text-sm text-red-500 mt-2">{{ commentError }}</p>
+        </div>
+
         <!-- Post Content -->
         <div class="mb-3">
             <p class="text-gray-900 whitespace-pre-wrap leading-relaxed">{{ post.content }}</p>
@@ -101,18 +211,41 @@ const handleImageError = () => {
                     @error="handleImageError"
                 />
             </div>
+            
+            <!-- Comments preview -->
+            <div v-if="comments && comments.length" class="mt-3 space-y-3">
+                <div v-for="comment in comments" :key="comment.id" class="flex items-start space-x-3">
+                    <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-medium text-gray-700">{{ (comment.user?.name || 'U').charAt(0).toUpperCase() }}</div>
+                    <div class="flex-1">
+                        <div class="text-sm">
+                            <span class="font-semibold text-gray-800 mr-2">{{ comment.user?.name || 'Unknown' }}</span>
+                            <span class="text-gray-500 text-xs">· {{ formatDate(comment.created_at) }}</span>
+                        </div>
+                        <div class="text-gray-800 text-sm">{{ comment.content }}</div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Action Buttons -->
         <div class="flex items-center space-x-6 text-gray-500">
-            <!-- Reply -->
+            <!-- Reply (view only) -->
             <button class="flex items-center space-x-2 hover:text-blue-500 transition-colors group">
                 <div class="p-2 rounded-full group-hover:bg-blue-50 transition-colors">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path>
                     </svg>
                 </div>
-                <span class="text-sm">{{ post.replies_count || '' }}</span>
+                <span class="text-sm">{{ repliesCount || '' }}</span>
+            </button>
+
+            <!-- Comment (opens comment box) -->
+            <button @click="toggleCommentBox" class="flex items-center space-x-2 hover:text-blue-500 transition-colors group">
+                <div class="p-2 rounded-full group-hover:bg-blue-50 transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4-.8L3 20l1.2-3.8A7.966 7.966 0 013 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                    </svg>
+                </div>
             </button>
 
             <!-- Like -->
