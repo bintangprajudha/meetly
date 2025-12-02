@@ -46,6 +46,7 @@ Route::middleware(['auth'])->group(function () {
     
     // Comment routes
     Route::post('/posts/{post}/comments', [CommentController::class, 'store'])->name('comments.store');
+    Route::get('/posts/{post}/comments/latest', [CommentController::class, 'latest'])->name('comments.latest');
 });
 
 // User Profile routes (accessible by both authenticated and guest users)

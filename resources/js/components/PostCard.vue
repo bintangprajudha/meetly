@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { Link } from '@inertiajs/vue3';
+import { Link, router } from '@inertiajs/vue3';
 
 const props = defineProps<{
     post: {
@@ -35,7 +35,6 @@ const showCommentBox = ref(false);
 const commentInput = ref('');
 const posting = ref(false);
 const commentError = ref<string | null>(null);
-const abortController = ref<AbortController | null>(null);
 
 const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -79,67 +78,53 @@ const postComment = async () => {
     }
 
     posting.value = true;
-    try {
-        const metaToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
 
-        const getCookie = (name: string) => {
-            const matches = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/([.$?*|{}()\[\]\\\/\+^])/g, '\\$1') + '=([^;]*)'));
-            return matches ? decodeURIComponent(matches[1]) : undefined;
-        };
+    const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
-        const cookieToken = getCookie('XSRF-TOKEN');
-        const token = metaToken || cookieToken || '';
-
-        abortController.value = new AbortController();
-
-        const res = await fetch(`/posts/${props.post.id}/comments`, {
-            method: 'POST',
-            credentials: 'include',
-            signal: abortController.value.signal,
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': token,
-                'X-XSRF-TOKEN': token,
-                'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: JSON.stringify({ content })
-        });
-
-        if (!res.ok) {
-            const err = await res.json().catch(() => null);
-            commentError.value = err?.message || 'Failed to post comment';
-        } else {
-            const data = await res.json();
+    router.post(`/posts/${props.post.id}/comments`, { content, _token: token }, {
+        preserveState: true,
+        onSuccess: async () => {
+            // Clear input and increment replies count
             commentInput.value = '';
             showCommentBox.value = false;
             repliesCount.value = (repliesCount.value || 0) + 1;
-            // prepend to local comments list for immediate feedback
-            comments.value.unshift(data.comment);
-            emit('commented', props.post.id, data.comment);
+
+            // Fetch the latest comment from the server and prepend it so it appears immediately
+            try {
+                const res = await fetch(`/posts/${props.post.id}/comments/latest`, {
+                    method: 'GET',
+                    credentials: 'include',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data?.comment) {
+                        comments.value.unshift(data.comment);
+                    }
+                }
+            } catch (e) {
+                // ignore fetch error but leave comment UI consistent
+                console.warn('Failed to fetch latest comment', e);
+            } finally {
+                posting.value = false;
+            }
+        },
+        onError: (errors) => {
+            commentError.value = errors?.message || 'Failed to post comment';
+            posting.value = false;
         }
-    } catch (e: any) {
-        if (e.name === 'AbortError') {
-            commentError.value = 'Comment posting cancelled';
-        } else {
-            commentError.value = 'Network error';
-        }
-    } finally {
-        posting.value = false;
-        abortController.value = null;
-    }
+    });
 };
 
 const cancelComment = () => {
-    if (posting.value && abortController.value) {
-        // abort in-progress request
-        abortController.value.abort();
-        posting.value = false;
-    } else {
-        // just close the box and clear errors
-        showCommentBox.value = false;
-        commentError.value = null;
-    }
+    // simply close the box and clear errors (Inertia post is not abortable here)
+    showCommentBox.value = false;
+    commentError.value = null;
+    posting.value = false;
 };
 </script>
 

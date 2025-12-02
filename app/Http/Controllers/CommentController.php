@@ -27,6 +27,27 @@ class CommentController extends Controller
 
         $comment->load('user');
 
+        // If the request is an Inertia visit, return a redirect (Inertia expects an Inertia response)
+        if ($request->header('X-Inertia')) {
+            // Redirect back so Inertia will follow and refresh page props
+            return redirect()->back();
+        }
+
+        // For regular API/Fetch requests return JSON
         return response()->json(['comment' => $comment], 201);
+    }
+
+    /**
+     * Return the latest comment for the given post (used by frontend to fetch the created comment).
+     */
+    public function latest(Post $post)
+    {
+        $comment = $post->comments()->with('user')->latest()->first();
+
+        if (! $comment) {
+            return response()->json(['comment' => null], 404);
+        }
+
+        return response()->json(['comment' => $comment], 200);
     }
 }
