@@ -27,7 +27,7 @@ Route::middleware(['guest'])->group(function () {
 // Authenticated routes (only accessible when logged in)
 Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard', function () {
-        $posts = \App\Models\Post::with(['user', 'comments.user'])
+        $posts = \App\Models\Post::with('user')
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -43,10 +43,11 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/posts', [PostController::class, 'store'])->name('posts.store');
     Route::get('/posts/{post}', [PostController::class, 'show'])->name('posts.show');
     Route::delete('/posts/{post}', [PostController::class, 'destroy'])->name('posts.destroy');
-    
+
     // Comment routes
     Route::post('/posts/{post}/comments', [CommentController::class, 'store'])->name('comments.store');
-    Route::get('/posts/{post}/comments/latest', [CommentController::class, 'latest'])->name('comments.latest');
+    Route::delete('/posts/{post}/comments/{comment}', [CommentController::class, 'destroy'])->name('comments.destroy');
+    Route::get('/posts/{post}/comments', [CommentController::class, 'getByPost'])->name('comments.get');
 });
 
 // User Profile routes (accessible by both authenticated and guest users)
