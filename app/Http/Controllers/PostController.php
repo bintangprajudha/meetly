@@ -13,13 +13,82 @@ class PostController extends Controller
 {
     public function index()
     {
+        $userId = Auth::id();
+
         $posts = Post::with('user')
+            ->withCount('likes')
+            ->withCount('bookmarks')
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->get()
+            ->map(function ($post) use ($userId) {
+                $post->liked = $userId ? $post->likes()->where('user_id', $userId)->exists() : false;
+                $post->bookmarked = $userId ? $post->bookmarks()->where('user_id', $userId)->exists() : false;
+                $post->likes_count = $post->likes_count ?? $post->likes()->count();
+                $post->bookmarks_count = $post->bookmarks_count ?? $post->bookmarks()->count();
+                return $post;
+            });
 
         return Inertia::render('Dashboard', [
             'user' => Auth::user(),
             'posts' => $posts,
+        ]);
+    }
+
+    // Toggle like for current user — returns JSON with updated counts and status
+    public function toggleLike(Post $post)
+    {
+        $userId = Auth::id();
+        if (! $userId) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        Log::info('toggleLike called', ['post_id' => $post->id, 'user_id' => $userId]);
+
+        $exists = $post->likes()->where('user_id', $userId)->exists();
+
+        if ($exists) {
+            $post->likes()->detach($userId);
+            $liked = false;
+        } else {
+            $post->likes()->attach($userId);
+            $liked = true;
+        }
+
+        $likesCount = $post->likes()->count();
+        $post->likes_count = $likesCount;
+        $post->saveQuietly();
+
+        return response()->json([
+            'liked' => $liked,
+            'likes_count' => $likesCount,
+        ]);
+    }
+
+    // Toggle bookmark for current user — returns JSON with updated status
+    public function toggleBookmark(Post $post)
+    {
+        $userId = Auth::id();
+        if (! $userId) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        Log::info('toggleBookmark called', ['post_id' => $post->id, 'user_id' => $userId]);
+
+        $exists = $post->bookmarks()->where('user_id', $userId)->exists();
+
+        if ($exists) {
+            $post->bookmarks()->detach($userId);
+            $bookmarked = false;
+        } else {
+            $post->bookmarks()->attach($userId);
+            $bookmarked = true;
+        }
+
+        $bookmarksCount = $post->bookmarks()->count();
+
+        return response()->json([
+            'bookmarked' => $bookmarked,
+            'bookmarks_count' => $bookmarksCount,
         ]);
     }
 

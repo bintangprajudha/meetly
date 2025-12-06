@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { Link } from '@inertiajs/vue3';
+import { Link, usePage } from '@inertiajs/vue3';
+
+const page = usePage();
 
 const props = defineProps<{
     post: {
@@ -8,8 +10,11 @@ const props = defineProps<{
         content: string;
         image_url?: string;
         likes_count: number;
+        bookmarks_count: number;
         replies_count: number;
         created_at: string;
+        liked?: boolean;
+        bookmarked?: boolean;
         user: {
             id: number;
             name: string;
@@ -28,6 +33,91 @@ const emit = defineEmits<{
 }>();
 
 const imageError = ref(false);
+
+// local reactive UI state for likes - initialized once, managed locally
+const liked = ref<boolean>(props.post.liked ?? false);
+const likes = ref<number>(props.post.likes_count ?? 0);
+
+// local reactive UI state for bookmarks - initialized once, managed locally
+const bookmarked = ref<boolean>(props.post.bookmarked ?? false);
+const bookmarks = ref<number>(props.post.bookmarks_count ?? 0);
+
+const toggleLike = async () => {
+    const prevLiked = liked.value;
+    const prevLikes = likes.value;
+
+    // optimistic update
+    liked.value = !prevLiked;
+    likes.value += liked.value ? 1 : -1;
+    if (likes.value < 0) likes.value = 0;
+
+    try {
+        const csrfToken = (page.props as any).csrf_token || '';
+
+        const res = await fetch(`/posts/${props.post.id}/like`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({}),
+        });
+
+        if (!res.ok) throw res;
+
+        const data = await res.json();
+        // Use server response as source of truth
+        if (data.likes_count !== undefined) likes.value = data.likes_count;
+        if (data.liked !== undefined) liked.value = data.liked;
+    } catch (err) {
+        // revert optimistic
+        liked.value = prevLiked;
+        likes.value = prevLikes;
+        console.error('Error toggling like', err);
+    }
+};
+
+const toggleBookmark = async () => {
+    const prevBookmarked = bookmarked.value;
+    const prevBookmarks = bookmarks.value;
+
+    // optimistic update
+    bookmarked.value = !prevBookmarked;
+    bookmarks.value += bookmarked.value ? 1 : -1;
+    if (bookmarks.value < 0) bookmarks.value = 0;
+
+    try {
+        const csrfToken = (page.props as any).csrf_token || '';
+
+        const res = await fetch(`/posts/${props.post.id}/bookmark`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({}),
+        });
+
+        if (!res.ok) throw res;
+
+        const data = await res.json();
+        console.log('Bookmark response:', data);
+        // Use server response as source of truth
+        if (data.bookmarked !== undefined) bookmarked.value = data.bookmarked;
+        if (data.bookmarks_count !== undefined) bookmarks.value = data.bookmarks_count;
+    } catch (err) {
+        // revert optimistic
+        bookmarked.value = prevBookmarked;
+        bookmarks.value = prevBookmarks;
+        console.error('Error toggling bookmark', err);
+    }
+};
 
 const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -116,13 +206,27 @@ const handleImageError = () => {
             </button>
 
             <!-- Like -->
-            <button class="flex items-center space-x-2 hover:text-red-500 transition-colors group">
-                <div class="p-2 rounded-full group-hover:bg-red-50 transition-colors">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
-                    </svg>
-                </div>
-                <span class="text-sm">{{ post.likes_count || '' }}</span>
+            <button
+                @click.prevent="toggleLike"
+                :class="['flex items-center space-x-2 px-2 py-1 rounded transition-colors', liked ? 'text-red-500 bg-red-50' : 'text-gray-500 hover:bg-gray-100']"
+                aria-label="Like"
+            >
+                <svg class="w-4 h-4" :fill="liked ? 'currentColor' : 'none'" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
+                </svg>
+                <span class="text-sm">{{ likes }}</span>
+            </button>
+
+            <!-- Bookmark -->
+            <button
+                @click.prevent="toggleBookmark"
+                :class="['flex items-center space-x-2 px-2 py-1 rounded transition-colors', bookmarked ? 'text-yellow-500 bg-yellow-50' : 'text-gray-500 hover:bg-gray-100']"
+                aria-label="Bookmark"
+            >
+                <svg class="w-4 h-4" :fill="bookmarked ? 'currentColor' : 'none'" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h6a2 2 0 012 2v16l-7-3.5L5 21V5z"></path>
+                </svg>
+                <span class="text-sm">{{ bookmarks }}</span>
             </button>
 
             <!-- Share -->

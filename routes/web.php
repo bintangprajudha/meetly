@@ -24,7 +24,7 @@ Route::middleware(['guest'])->group(function () {
 });
 
 // Authenticated routes (only accessible when logged in)
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['web', 'auth'])->group(function () {
     Route::get('/dashboard', function () {
         $posts = \App\Models\Post::with('user')
             ->orderBy('created_at', 'desc')
@@ -42,6 +42,10 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/posts', [PostController::class, 'store'])->name('posts.store');
     Route::get('/posts/{post}', [PostController::class, 'show'])->name('posts.show');
     Route::delete('/posts/{post}', [PostController::class, 'destroy'])->name('posts.destroy');
+    // Toggle like
+    Route::post('/posts/{post}/like', [PostController::class, 'toggleLike'])->name('posts.like');
+    // Toggle bookmark
+    Route::post('/posts/{post}/bookmark', [PostController::class, 'toggleBookmark'])->name('posts.bookmark');
 });
 
 // User Profile routes (accessible by both authenticated and guest users)
