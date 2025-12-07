@@ -84,10 +84,9 @@ const postComment = async () => {
     router.post(`/posts/${props.post.id}/comments`, { content, _token: token }, {
         preserveState: true,
         onSuccess: async () => {
-            // Clear input and increment replies count
+            // Clear input
             commentInput.value = '';
             showCommentBox.value = false;
-            repliesCount.value = (repliesCount.value || 0) + 1;
 
             // Fetch the latest comment from the server and prepend it so it appears immediately
             try {
@@ -177,7 +176,7 @@ const cancelComment = () => {
                     <span v-else>Posting...</span>
                 </button>
 
-                <button @click="cancelComment" class="px-3 py-1 rounded-md border border-gray-200 hover:bg-gray-50">Cancel</button>
+                <button @click="cancelComment" class="px-3 py-1 rounded-md border border-gray-200 hover:bg-gray-50 text-gray-700">Cancel</button>
             </div>
 
             <p v-if="commentError" class="text-sm text-red-500 mt-2">{{ commentError }}</p>
@@ -231,6 +230,7 @@ const cancelComment = () => {
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4-.8L3 20l1.2-3.8A7.966 7.966 0 013 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
                     </svg>
                 </div>
+                <span class="text-sm">{{ comments.length || '' }} Comments</span>
             </button>
 
             <!-- Like -->

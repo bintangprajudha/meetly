@@ -22,9 +22,6 @@ class CommentController extends Controller
             'content' => $data['content'],
         ]);
 
-        // increment replies_count on post
-        $post->increment('replies_count');
-
         $comment->load('user');
 
         // If the request is an Inertia visit, return a redirect (Inertia expects an Inertia response)
