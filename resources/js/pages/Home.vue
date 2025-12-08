@@ -60,7 +60,7 @@ import { Link } from '@inertiajs/vue3';
                 </div>
                 <div class="hidden lg:flex lg:flex-1 lg:justify-end">
                     <Link
-                        href="{{ route('login') }}"
+                        href="{{ route('show.login') }}"
                         class="text-sm/6 font-semibold text-white"
                         >Log in <span aria-hidden="true">&rarr;</span></Link
                     >
