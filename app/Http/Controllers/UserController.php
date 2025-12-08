@@ -13,7 +13,9 @@ class UserController extends Controller
     public function show($username)
     {
         // Find user by username
-        $user = User::where('name', $username)->firstOrFail();
+        $user = User::where('name', $username)
+            ->withCount(['followers', 'following']) 
+            ->firstOrFail();
 
         // Get user's posts with eager loading
         $posts = Post::with('user')
