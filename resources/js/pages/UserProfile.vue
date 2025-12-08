@@ -36,6 +36,7 @@ const props = defineProps<{
         created_at?: string;
     };
     posts: Post[];
+    isFollowing: boolean;
 }>();
 
 // Normalize profile user: some controllers send `profileUser`, others `user`.
@@ -96,6 +97,26 @@ const getAvatarColor = (name : string) => {
     }, 0);
     
     return colors[hash % colors.length];
+};
+
+const isFollowing = ref(props.isFollowing);
+
+const followUser = async () => {
+    try {
+        await router.post(`/users/${profileUser.id}/follow`);
+        isFollowing.value = true;
+    } catch (error) {
+        console.error(error);
+    }
+};
+
+const unfollowUser = async () => {
+    try {
+        await router.delete(`/users/${profileUser.id}/follow`);
+        isFollowing.value = false;
+    } catch (error) {
+        console.error(error);
+    }
 };
 
 
@@ -161,9 +182,22 @@ const getAvatarColor = (name : string) => {
                         
                     </div>
 
-                    <div v-if="$page.props.auth.user && $page.props.auth.user.id !== profileUser.id" class="mt-6" >
-                        <button class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">Follow</button>
+                    <div v-if="authUser && authUser.id !== profileUser.id" class="mt-6" >
+                        <button v-if="!isFollowing"
+                            @click="followUser"
+                            class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">
+                            Follow
+                        </button>
+
+                        <button v-else
+                            @click="unfollowUser"
+                            class="px-6 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium transition-colors">
+                            Unfollow
+                        </button>
                     </div>
+
+                    
+
 
                 </div>
             </div>
