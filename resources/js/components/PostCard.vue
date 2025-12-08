@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { Link, usePage } from '@inertiajs/vue3';
+import { Link, router, usePage } from '@inertiajs/vue3';
 
 const page = usePage();
 
@@ -30,9 +30,16 @@ const props = defineProps<{
 
 const emit = defineEmits<{
     delete: [postId: number];
+    commented: [postId: number, comment: any];
 }>();
 
 const imageError = ref(false);
+const repliesCount = ref(props.post.replies_count || 0);
+const comments = ref((props.post as any).comments ? [...(props.post as any).comments] : []);
+const showCommentBox = ref(false);
+const commentInput = ref('');
+const posting = ref(false);
+const commentError = ref<string | null>(null);
 
 // local reactive UI state for likes - initialized once, managed locally
 const liked = ref<boolean>(props.post.liked ?? false);
@@ -146,6 +153,68 @@ const deletePost = () => {
 const handleImageError = () => {
     imageError.value = true;
 };
+
+const toggleCommentBox = () => {
+    showCommentBox.value = !showCommentBox.value;
+    commentError.value = null;
+};
+
+const postComment = async () => {
+    commentError.value = null;
+    const content = (commentInput.value || '').trim();
+    if (!content) {
+        commentError.value = 'Comment cannot be empty';
+        return;
+    }
+
+    posting.value = true;
+
+    const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+    router.post(`/posts/${props.post.id}/comments`, { content, _token: token }, {
+        preserveState: true,
+        onSuccess: async () => {
+            // Clear input
+            commentInput.value = '';
+            showCommentBox.value = false;
+
+            // Fetch the latest comment from the server and prepend it so it appears immediately
+            try {
+                const res = await fetch(`/posts/${props.post.id}/comments/latest`, {
+                    method: 'GET',
+                    credentials: 'include',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data?.comment) {
+                        comments.value.unshift(data.comment);
+                    }
+                }
+            } catch (e) {
+                // ignore fetch error but leave comment UI consistent
+                console.warn('Failed to fetch latest comment', e);
+            } finally {
+                posting.value = false;
+            }
+        },
+        onError: (errors) => {
+            commentError.value = errors?.message || 'Failed to post comment';
+            posting.value = false;
+        }
+    });
+};
+
+const cancelComment = () => {
+    // simply close the box and clear errors (Inertia post is not abortable here)
+    showCommentBox.value = false;
+    commentError.value = null;
+    posting.value = false;
+};
 </script>
 
 <template>
@@ -178,6 +247,31 @@ const handleImageError = () => {
             </button>
         </div>
 
+        <!-- Comment Box -->
+        <div v-if="showCommentBox" class="mt-3">
+            <textarea
+                v-model="commentInput"
+                rows="3"
+                class="w-full p-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-200 bg-white text-black"
+                placeholder="Write a comment..."
+            ></textarea>
+
+            <div class="flex items-center space-x-2 mt-2">
+                <button
+                    @click="postComment"
+                    :disabled="posting"
+                    class="bg-blue-600 text-white px-3 py-1 rounded-md hover:bg-blue-700 disabled:opacity-50"
+                >
+                    <span v-if="!posting">Post</span>
+                    <span v-else>Posting...</span>
+                </button>
+
+                <button @click="cancelComment" class="px-3 py-1 rounded-md border border-gray-200 hover:bg-gray-50 text-gray-700">Cancel</button>
+            </div>
+
+            <p v-if="commentError" class="text-sm text-red-500 mt-2">{{ commentError }}</p>
+        </div>
+
         <!-- Post Content -->
         <div class="mb-3">
             <p class="text-gray-900 whitespace-pre-wrap leading-relaxed">{{ post.content }}</p>
@@ -191,18 +285,42 @@ const handleImageError = () => {
                     @error="handleImageError"
                 />
             </div>
+            
+            <!-- Comments preview -->
+            <div v-if="comments && comments.length" class="mt-3 space-y-3">
+                <div v-for="comment in comments" :key="comment.id" class="flex items-start space-x-3">
+                    <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-medium text-gray-700">{{ (comment.user?.name || 'U').charAt(0).toUpperCase() }}</div>
+                    <div class="flex-1">
+                        <div class="text-sm">
+                            <span class="font-semibold text-gray-800 mr-2">{{ comment.user?.name || 'Unknown' }}</span>
+                            <span class="text-gray-500 text-xs">· {{ formatDate(comment.created_at) }}</span>
+                        </div>
+                        <div class="text-gray-800 text-sm">{{ comment.content }}</div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Action Buttons -->
         <div class="flex items-center space-x-6 text-gray-500">
-            <!-- Reply -->
+            <!-- Reply (view only) -->
             <button class="flex items-center space-x-2 hover:text-blue-500 transition-colors group">
                 <div class="p-2 rounded-full group-hover:bg-blue-50 transition-colors">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path>
                     </svg>
                 </div>
-                <span class="text-sm">{{ post.replies_count || '' }}</span>
+                <span class="text-sm">{{ repliesCount || '' }}</span>
+            </button>
+
+            <!-- Comment (opens comment box) -->
+            <button @click="toggleCommentBox" class="flex items-center space-x-2 hover:text-blue-500 transition-colors group">
+                <div class="p-2 rounded-full group-hover:bg-blue-50 transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4-.8L3 20l1.2-3.8A7.966 7.966 0 013 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                    </svg>
+                </div>
+                <span class="text-sm">{{ comments.length || '' }} Comments</span>
             </button>
 
             <!-- Like -->

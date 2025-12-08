@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\PostController;
+use App\Http\Controllers\CommentController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -26,7 +27,7 @@ Route::middleware(['guest'])->group(function () {
 // Authenticated routes (only accessible when logged in)
 Route::middleware(['web', 'auth'])->group(function () {
     Route::get('/dashboard', function () {
-        $posts = \App\Models\Post::with('user')
+        $posts = \App\Models\Post::with(['user', 'comments.user'])
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -42,6 +43,10 @@ Route::middleware(['web', 'auth'])->group(function () {
     Route::post('/posts', [PostController::class, 'store'])->name('posts.store');
     Route::get('/posts/{post}', [PostController::class, 'show'])->name('posts.show');
     Route::delete('/posts/{post}', [PostController::class, 'destroy'])->name('posts.destroy');
+
+    // Comment routes
+    Route::post('/posts/{post}/comments', [CommentController::class, 'store'])->name('comments.store');
+    Route::get('/posts/{post}/comments/latest', [CommentController::class, 'latest'])->name('comments.latest');
     // Toggle like
     Route::post('/posts/{post}/like', [PostController::class, 'toggleLike'])->name('posts.like');
     // Toggle bookmark
