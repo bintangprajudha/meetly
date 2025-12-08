@@ -20,6 +20,7 @@ class UserController extends Controller
             ->where('user_id', $user->id)
             ->orderBy('created_at', 'desc')
             ->get();
+        $likedPosts = $user->likes()->with('user')->latest()->get();
 
         return Inertia::render('UserProfile', [
             'profileUser' => $user,
@@ -30,7 +31,8 @@ class UserController extends Controller
                 : false,
             'auth' => [
                 'user' => Auth::user()
-            ]
+            ],
+            'likedPosts' => $likedPosts ?? []
         ]);
     }
 }

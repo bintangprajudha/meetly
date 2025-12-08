@@ -25,7 +25,7 @@ Route::middleware(['guest'])->group(function () {
 });
 
 // Authenticated routes (only accessible when logged in)
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['web', 'auth'])->group(function () {
     Route::get('/dashboard', function () {
         $posts = \App\Models\Post::with('user')
             ->orderBy('created_at', 'desc')
@@ -47,6 +47,12 @@ Route::middleware(['auth'])->group(function () {
     // Follow and Unfollow
     Route::post('/users/{user}/follow', [FollowController::class, 'store'])->name('users.follow');
     Route::delete('/users/{user}/follow', [FollowController::class, 'destroy'])->name('users.unfollow');
+
+    // Toggle like
+    Route::post('/posts/{post}/like', [PostController::class, 'toggleLike'])->name('posts.like');
+    // Toggle bookmark
+    Route::post('/posts/{post}/bookmark', [PostController::class, 'toggleBookmark'])->name('posts.bookmark');
+
 });
 
 Route::get('/users/{user}/followers', [FollowController::class, 'followers'])->name('users.followers');
