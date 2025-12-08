@@ -61,9 +61,21 @@ class User extends Authenticatable
     {
         return $this->belongsToMany(Post::class, 'likes')->withTimestamps();
     }
+    public function likes(): BelongsToMany
+    {
+        return $this->likedPosts();
+    }
 
     public function bookmarkedPosts(): BelongsToMany
     {
         return $this->belongsToMany(Post::class, 'bookmarks')->withTimestamps();
+    }
+    public function isLikedBy(?User $user): bool
+    {
+        if (!$user) {
+            return false;
+        }
+
+        return $this->likes()->where('user_id', $user->id)->exists();
     }
 }

@@ -97,22 +97,29 @@ class PostController extends Controller
         // Validate and use the validated data array to avoid accessing missing properties
         $validated = $request->validate([
             'content' => 'required|string|max:280',
-            'image_url' => 'nullable|url',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048', // max 2MB
         ]);
-
+    
+        $imagePath = null;
+        
+        // Handle image upload if present
+        if ($request->hasFile('image')) {
+            $imagePath = $request->file('image')->store('posts', 'public');
+        }
+    
         $post = Post::create([
             'user_id' => Auth::id(),
             'content' => $validated['content'],
-            'image_url' => $validated['image_url'] ?? null,
+            'image_url' => $imagePath ? asset('storage/' . $imagePath) : null,
         ]);
-
+    
         Log::info('Post created successfully', [
             'post_id' => $post->id,
             'user_id' => Auth::id(),
-            // cast to string to avoid strlen(null) TypeError
             'content_length' => strlen((string) ($validated['content'] ?? '')),
+            'has_image' => !is_null($imagePath),
         ]);
-
+    
         return redirect()->back()->with('success', 'Post created successfully!');
     }
 
