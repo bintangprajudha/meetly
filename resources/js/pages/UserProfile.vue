@@ -12,8 +12,11 @@ interface Post {
     content: string;
     image_url?: string;
     likes_count: number;
+    bookmarks_count: number;
     replies_count: number;
     created_at: string;
+    liked?: boolean;
+    bookmarked?: boolean;
     user: {
         id: number;
         name: string;
@@ -36,6 +39,8 @@ const props = defineProps<{
         created_at?: string;
     };
     posts: Post[];
+    likedPosts?: Post[];  // Tambahkan ini
+    replies?: Post[];
 }>();
 
 // Normalize profile user: some controllers send `profileUser`, others `user`.
@@ -47,6 +52,9 @@ const pageTyped = page as unknown as { props: { auth?: { user?: { id: number; na
 const authUser = pageTyped.props.auth?.user ?? null;
 
 const showPostModal = ref(false);
+
+// Active tab state
+const activeTab = ref<'posts' | 'replies' | 'likes'>('posts');
 
 const handlePostCreated = () => {
     // Page will reload via Inertia redirect in controller
@@ -67,8 +75,6 @@ const handleDeletePost = async (postId: number) => {
         alert('Error deleting post. Please try again.');
     }
 };
-
-
 
 // Helper function to get user initials
 const getInitials = (name : string) => {
@@ -98,9 +104,10 @@ const getAvatarColor = (name : string) => {
     return colors[hash % colors.length];
 };
 
-
-
-
+// Set active tab
+const setActiveTab = (tab: 'posts' | 'replies' | 'likes') => {
+    activeTab.value = tab;
+};
 </script>
 
 <template>
@@ -112,9 +119,6 @@ const getAvatarColor = (name : string) => {
       <main class="max-w-2xl mx-auto py-8 px-8 sm:px-6 lg:px-8 md:px-10">
             <!-- Profile Header -->
             <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden mb-8">
-                
-                
-                
                 <!-- Profile Info -->
                 <div class="px-6 py-6">
                     <div class="flex items-center justify-start space-x-10">
@@ -144,57 +148,144 @@ const getAvatarColor = (name : string) => {
                             </div>
                         
                     </div>
-                    <!-- Follow Button (placeholder for future) -->
-                    <!-- <div v-if="$page.props.auth.user && $page.props.auth.user.id !== profileUser.id" class="pt-2">
-                        <button class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">
-                            Follow
-                        </button>
-                    </div> -->
-
-                    
 
                     <!-- Bio (placeholder) -->
                     <div class="mt-6">
                         <p class="text-gray-700">
                             Welcome to my profile! I love sharing thoughts and connecting with others.
                         </p>
-                        
                     </div>
 
-                    <div v-if="$page.props.auth.user && $page.props.auth.user.id !== profileUser.id" class="mt-6" >
+                    <!-- Follow Button (only show for other users) -->
+                    <div v-if="authUser && authUser.id !== profileUser.id" class="mt-6">
                         <button class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">Follow</button>
                     </div>
 
                 </div>
             </div>
 
-            <!-- Posts Section -->
-            <div class="bg-white rounded-lg shadow-sm border border-gray-200">
-                <div class="px-6 py-4 border-b border-gray-200">
-                    <h2 class="text-lg font-semibold text-gray-900">Posts</h2>
+            <!-- Navigation Tabs -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                <div class="border-b border-gray-200">
+                    <nav class="flex -mb-px">
+                        <!-- Posts Tab -->
+                        <button
+                            @click="setActiveTab('posts')"
+                            :class="[
+                                'flex-1 py-4 px-1 text-center border-b-2 font-medium text-sm transition-colors',
+                                activeTab === 'posts'
+                                    ? 'border-blue-500 text-blue-600'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            ]"
+                        >
+                            Posts
+                        </button>
+
+                        <!-- Replies Tab -->
+                        <button
+                            @click="setActiveTab('replies')"
+                            :class="[
+                                'flex-1 py-4 px-1 text-center border-b-2 font-medium text-sm transition-colors',
+                                activeTab === 'replies'
+                                    ? 'border-blue-500 text-blue-600'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            ]"
+                        >
+                            Replies
+                        </button>
+
+                        <!-- Likes Tab -->
+                        <button
+                            @click="setActiveTab('likes')"
+                            :class="[
+                                'flex-1 py-4 px-1 text-center border-b-2 font-medium text-sm transition-colors',
+                                activeTab === 'likes'
+                                    ? 'border-blue-500 text-blue-600'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            ]"
+                        >
+                            Likes
+                        </button>
+                    </nav>
                 </div>
 
-                <!-- Posts List -->
-                <div v-if="props.posts.length > 0" class="divide-y divide-gray-200">
-                    <PostCard
-                        v-for="post in props.posts"
-                        :key="post.id"
-                        :post="post"
-                        :current-user="authUser as any"
-                        @delete="handleDeletePost"
-                        class="border-none"
-                    />
-                </div>
+                <!-- Tab Content -->
+                <div class="min-h-[400px]">
+                    <!-- Posts Tab Content -->
+                    <div v-show="activeTab === 'posts'">
+                        <div v-if="props.posts.length > 0" class="divide-y divide-gray-200">
+                            <PostCard
+                                v-for="post in props.posts"
+                                :key="post.id"
+                                :post="post"
+                                :current-user="authUser as any"
+                                @delete="handleDeletePost"
+                                class="border-none"
+                            />
+                        </div>
 
-                <!-- Empty State -->
-                <div v-else class="px-6 py-12 text-center">
-                    <div class="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
-                        <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-                        </svg>
+                        <!-- Empty State for Posts -->
+                        <div v-else class="px-6 py-12 text-center">
+                            <div class="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                                <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                </svg>
+                            </div>
+                            <h3 class="text-lg font-medium text-gray-900 mb-2">No posts yet</h3>
+                            <p class="text-gray-500">{{ profileUser.name }} hasn't shared anything yet.</p>
+                        </div>
                     </div>
-                    <h3 class="text-lg font-medium text-gray-900 mb-2">No posts yet</h3>
-                    <p class="text-gray-500">{{ profileUser.name }} hasn't shared anything yet.</p>
+
+                    <!-- Replies Tab Content -->
+                    <div v-show="activeTab === 'replies'">
+                        <div v-if="props.replies && props.replies.length > 0" class="divide-y divide-gray-200">
+                            <PostCard
+                                v-for="post in props.replies"
+                                :key="post.id"
+                                :post="post"
+                                :current-user="authUser as any"
+                                @delete="handleDeletePost"
+                                class="border-none"
+                            />
+                        </div>
+                        
+                        <!-- Empty State for Replies -->
+                        <div v-else class="px-6 py-12 text-center">
+                            <div class="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                                <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path>
+                                </svg>
+                            </div>
+                            <h3 class="text-lg font-medium text-gray-900 mb-2">No replies yet</h3>
+                            <p class="text-gray-500">{{ profileUser.name }} hasn't replied to any posts.</p>
+                        </div>
+                    </div>
+
+                    <!-- Likes Tab Content -->
+                    <div v-show="activeTab === 'likes'">
+                        <!-- Menampilkan liked posts -->
+                        <div v-if="props.likedPosts && props.likedPosts.length > 0" class="divide-y divide-gray-200">
+                            <PostCard
+                                v-for="post in props.likedPosts"
+                                :key="post.id"
+                                :post="post"
+                                :current-user="authUser as any"
+                                @delete="handleDeletePost"
+                                class="border-none"
+                            />
+                        </div>
+                        
+                        <!-- Empty State for Likes -->
+                        <div v-else class="px-6 py-12 text-center">
+                            <div class="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                                <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
+                                </svg>
+                            </div>
+                            <h3 class="text-lg font-medium text-gray-900 mb-2">No likes yet</h3>
+                            <p class="text-gray-500">{{ profileUser.name }} hasn't liked any posts.</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </main>

@@ -17,10 +17,51 @@ const emit = defineEmits<{
 }>();
 
 const content = ref('');
+const imageFile = ref<File | null>(null);
+const imagePreview = ref<string | null>(null);
 const isSubmitting = ref(false);
+
 const characterCount = computed(() => content.value.length);
 const isOverLimit = computed(() => characterCount.value > 280);
 const canPost = computed(() => content.value.trim().length > 0 && !isOverLimit.value && !isSubmitting.value);
+
+// Handle image selection
+const handleImageSelect = (event: Event) => {
+    const target = event.target as HTMLInputElement;
+    const file = target.files?.[0];
+    
+    if (file) {
+        // Validate file size (2MB max)
+        if (file.size > 2 * 1024 * 1024) {
+            alert('Image size must be less than 2MB');
+            return;
+        }
+        
+        // Validate file type
+        if (!file.type.startsWith('image/')) {
+            alert('Please select an image file');
+            return;
+        }
+        
+        imageFile.value = file;
+        
+        // Create preview
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            imagePreview.value = e.target?.result as string;
+        };
+        reader.readAsDataURL(file);
+    }
+};
+
+// Remove selected image
+const removeImage = () => {
+    imageFile.value = null;
+    imagePreview.value = null;
+    // Reset file input
+    const fileInput = document.getElementById('image-upload') as HTMLInputElement;
+    if (fileInput) fileInput.value = '';
+};
 
 const submitPost = async () => {
     if (!canPost.value) return;
@@ -28,17 +69,26 @@ const submitPost = async () => {
     isSubmitting.value = true;
 
     try {
-        await router.post('/posts', {
-            content: content.value.trim(),
-        }, {
-            preserveState: false, // Refresh halaman untuk menampilkan post baru
+        // Create FormData for multipart upload
+        const formData = new FormData();
+        formData.append('content', content.value.trim());
+        
+        if (imageFile.value) {
+            formData.append('image', imageFile.value);
+        }
+
+        await router.post('/posts', formData, {
+            preserveState: false,
+            forceFormData: true, // Force Inertia to use FormData
             onSuccess: () => {
                 content.value = '';
+                removeImage();
                 emit('posted');
                 emit('close');
             },
             onError: (errors) => {
                 console.error('Error posting:', errors);
+                alert('Failed to create post. Please try again.');
             },
         });
     } catch (error) {
@@ -50,6 +100,8 @@ const submitPost = async () => {
 
 const closeModal = () => {
     if (!isSubmitting.value) {
+        content.value = '';
+        removeImage();
         emit('close');
     }
 };
@@ -109,6 +161,21 @@ const handleKeydown = (event: KeyboardEvent) => {
                             :disabled="isSubmitting"
                         ></textarea>
                         
+                        <!-- Image Preview -->
+                        <div v-if="imagePreview" class="relative mt-3">
+                            <img :src="imagePreview" alt="Preview" class="w-full rounded-lg border border-gray-200" />
+                            <button
+                                type="button"
+                                @click="removeImage"
+                                class="absolute top-2 right-2 p-1.5 bg-gray-900 bg-opacity-75 text-white rounded-full hover:bg-opacity-90 transition-colors"
+                                :disabled="isSubmitting"
+                            >
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                </svg>
+                            </button>
+                        </div>
+                        
                         <!-- Character Count -->
                         <div class="flex justify-between items-center mt-2">
                             <div class="text-sm text-gray-500">
@@ -142,12 +209,20 @@ const handleKeydown = (event: KeyboardEvent) => {
                     <!-- Actions -->
                     <div class="flex items-center justify-between pt-4 border-t border-gray-200">
                         <div class="flex items-center space-x-4">
-                            <!-- Media Icons (for future features) -->
-                            <button type="button" class="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-full transition-colors" disabled>
+                            <!-- Image Upload Button -->
+                            <label class="cursor-pointer p-2 text-blue-500 hover:bg-blue-50 rounded-full transition-colors">
+                                <input
+                                    id="image-upload"
+                                    type="file"
+                                    accept="image/*"
+                                    class="hidden"
+                                    @change="handleImageSelect"
+                                    :disabled="isSubmitting"
+                                />
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                                 </svg>
-                            </button>
+                            </label>
                         </div>
 
                         <button
