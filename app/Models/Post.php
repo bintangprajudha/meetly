@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use App\Models\Comment;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Post extends Model
 {
@@ -17,6 +18,7 @@ class Post extends Model
         'content',
         'image_url',
         'likes_count',
+        'bookmarks_count',
         'replies_count',
     ];
 
@@ -35,4 +37,14 @@ class Post extends Model
         return $this->hasMany(Comment::class);
     }
 
+
+    public function likes(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'likes')->withTimestamps();
+    }
+
+    public function bookmarks(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'bookmarks')->withTimestamps();
+    }
 }

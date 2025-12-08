@@ -33,6 +33,9 @@ const props = defineProps<{
 
 const showPostModal = ref(false);
 
+// local reactive copy so we can update likes optimistically
+const posts = ref(props.posts.map(p => ({ ...p })));
+
 const handlePostCreated = () => {
     // Page will reload via Inertia redirect in controller
 };
@@ -62,9 +65,9 @@ const handleDeletePost = async (postId: number) => {
 
       <main class="p-6">
         <div class="max-w-2xl mx-auto">
-          <div v-if="props.posts.length > 0" class="space-y-4">
+          <div v-if="posts.length > 0" class="space-y-4">
             <PostCard
-              v-for="post in props.posts"
+              v-for="post in posts"
               :key="post.id"
               :post="post"
               :current-user="props.user"
