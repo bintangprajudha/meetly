@@ -39,10 +39,12 @@ const props = defineProps<{
         created_at?: string;
     };
     posts: Post[];
-    likedPosts?: Post[]; // Tambahkan ini
+    isFollowing: boolean;
+    likedPosts?: Post[];  // Tambahkan ini
     replies?: Post[];
 }>();
 
+const isFollowing = ref(props.isFollowing);
 // Normalize profile user: some controllers send `profileUser`, others `user`.
 const profileUser = (props.user ?? (props as any).profileUser) as {
     id: number;
@@ -128,6 +130,27 @@ const getAvatarColor = (name: string) => {
 const setActiveTab = (tab: 'posts' | 'replies' | 'likes') => {
     activeTab.value = tab;
 };
+
+const followUser = async () => {
+    await router.post(`/users/${profileUser.id}/follow`, {}, {
+        preserveScroll: true,
+        onSuccess: () => {
+            isFollowing.value = true;
+        }
+    });
+};
+
+const unfollowUser = async () => {
+    await router.delete(`/users/${profileUser.id}/follow`, {
+        preserveScroll: true,
+        onSuccess: () => {
+            isFollowing.value = false;
+        }
+    });
+};
+
+
+
 </script>
 
 <template>
@@ -167,32 +190,14 @@ const setActiveTab = (tab: 'posts' | 'replies' | 'likes') => {
                                     {{ profileUser.email }}
                                 </p>
                                 <!-- Stats -->
-                                <div
-                                    class="mt-0 flex items-center space-x-8 pt-6"
-                                >
-                                    <div
-                                        class="flex items-center justify-evenly gap-2 text-center"
-                                    >
-                                        <p
-                                            class="text-md font-bold text-gray-900"
-                                        >
-                                            0
-                                        </p>
-                                        <p class="text-sm text-gray-600">
-                                            Followers
-                                        </p>
+                                <div class="flex items-center space-x-8 mt-0 pt-6">                                    
+                                    <div class="text-center flex justify-evenly items-center gap-2">
+                                        <p class="text-md font-bold text-gray-900">{{ profileUser.followers_count }}</p>
+                                        <p class="text-gray-600 text-sm">Followers</p>
                                     </div>
-                                    <div
-                                        class="flex items-center justify-evenly gap-2 text-center"
-                                    >
-                                        <p
-                                            class="text-md font-bold text-gray-900"
-                                        >
-                                            0
-                                        </p>
-                                        <p class="text-sm text-gray-600">
-                                            Following
-                                        </p>
+                                    <div class="text-center flex justify-evenly items-center gap-2">
+                                        <p class="text-md font-bold text-gray-900">{{ profileUser.following_count }}</p>
+                                        <p class="text-gray-600 text-sm">Following</p>
                                     </div>
                                 </div>
                             </div>
@@ -206,10 +211,38 @@ const setActiveTab = (tab: 'posts' | 'replies' | 'likes') => {
                             </p>
                         </div>
 
-                        <!-- Follow Button (only show for other users) -->
-                        <div
-                            v-if="authUser && authUser.id !== profileUser.id"
-                            class="mt-6"
+
+                    <div v-if="authUser && authUser.id !== profileUser.id" class="mt-6" >
+                        <button v-if="!isFollowing"
+                            @click="followUser"
+                            class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">
+                            Follow
+                        </button>
+
+                        <button v-else
+                            @click="unfollowUser"
+                            class="px-6 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium transition-colors">
+                            Unfollow
+                        </button>
+
+
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation Tabs -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                <div class="border-b border-gray-200">
+                    <nav class="flex -mb-px">
+                        <!-- Posts Tab -->
+                        <button
+                            @click="setActiveTab('posts')"
+                            :class="[
+                                'flex-1 py-4 px-1 text-center border-b-2 font-medium text-sm transition-colors',
+                                activeTab === 'posts'
+                                    ? 'border-blue-500 text-blue-600'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            ]"
                         >
                             <button
                                 class="rounded-lg bg-blue-600 px-6 py-2 font-medium text-white transition-colors hover:bg-blue-700"
