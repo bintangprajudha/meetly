@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, router } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import PostModal from '@/components/PostModal.vue';
 import PostCard from '@/components/PostCard.vue';

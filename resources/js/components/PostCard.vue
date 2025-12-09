@@ -33,7 +33,6 @@ const emit = defineEmits<{
     commented: [postId: number, comment: any];
 }>();
 
-const imageError = ref(false);
 const repliesCount = ref(props.post.replies_count || 0);
 const comments = ref(
     (props.post as any).comments ? [...(props.post as any).comments] : [],
@@ -151,10 +150,6 @@ const deletePost = () => {
     if (confirm('Are you sure you want to delete this post?')) {
         emit('delete', props.post.id);
     }
-};
-
-const handleImageError = () => {
-    imageError.value = true;
 };
 
 const toggleCommentBox = () => {
