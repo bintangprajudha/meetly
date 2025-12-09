@@ -153,10 +153,6 @@ const deletePost = () => {
     }
 };
 
-const handleImageError = () => {
-    imageError.value = true;
-};
-
 const toggleCommentBox = () => {
     showCommentBox.value = !showCommentBox.value;
     commentError.value = null;
