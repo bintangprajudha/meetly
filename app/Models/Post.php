@@ -16,7 +16,7 @@ class Post extends Model
     protected $fillable = [
         'user_id',
         'content',
-        'image_url',
+        'images',
         'likes_count',
         'bookmarks_count',
         'replies_count',
@@ -25,6 +25,7 @@ class Post extends Model
     protected $casts = [
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
+        'images' => 'array'
     ];
 
     public function user(): BelongsTo

@@ -12,8 +12,11 @@ interface Post {
     content: string;
     image_url?: string;
     likes_count: number;
+    bookmarks_count: number;
     replies_count: number;
     created_at: string;
+    liked?: boolean;
+    bookmarked?: boolean;
     user: {
         id: number;
         name: string;
