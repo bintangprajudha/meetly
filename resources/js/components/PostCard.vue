@@ -33,7 +33,6 @@ const emit = defineEmits<{
     commented: [postId: number, comment: any];
 }>();
 
-const imageError = ref(false);
 const repliesCount = ref(props.post.replies_count || 0);
 const comments = ref(
     (props.post as any).comments ? [...(props.post as any).comments] : [],
