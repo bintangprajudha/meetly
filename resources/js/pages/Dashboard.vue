@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, router } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import PostModal from '@/components/PostModal.vue';
 import PostCard from '@/components/PostCard.vue';
@@ -12,8 +12,11 @@ interface Post {
     content: string;
     image_url?: string;
     likes_count: number;
+    bookmarks_count: number;
     replies_count: number;
     created_at: string;
+    liked?: boolean;
+    bookmarked?: boolean;
     user: {
         id: number;
         name: string;

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
 import { router } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
 
 const props = defineProps<{
     isOpen: boolean;
@@ -17,49 +17,64 @@ const emit = defineEmits<{
 }>();
 
 const content = ref('');
-const imageFile = ref<File | null>(null);
-const imagePreview = ref<string | null>(null);
+const imageFiles = ref<File[]>([]); // Array of files
+const imagePreviews = ref<string[]>([]); // Array of previews
 const isSubmitting = ref(false);
+const maxImages = 4;
 
 const characterCount = computed(() => content.value.length);
 const isOverLimit = computed(() => characterCount.value > 280);
-const canPost = computed(() => content.value.trim().length > 0 && !isOverLimit.value && !isSubmitting.value);
+const canPost = computed(
+    () =>
+        content.value.trim().length > 0 &&
+        !isOverLimit.value &&
+        !isSubmitting.value,
+);
 
-// Handle image selection
+// Handle multiple image selection
 const handleImageSelect = (event: Event) => {
     const target = event.target as HTMLInputElement;
-    const file = target.files?.[0];
-    
-    if (file) {
+    const files = Array.from(target.files || []);
+
+    // Check if adding these files exceeds max limit
+    if (imageFiles.value.length + files.length > maxImages) {
+        alert(`Maximum ${maxImages} images allowed`);
+        return;
+    }
+
+    for (const file of files) {
         // Validate file size (2MB max)
         if (file.size > 2 * 1024 * 1024) {
-            alert('Image size must be less than 2MB');
-            return;
+            alert(`${file.name} size must be less than 2MB`);
+            continue;
         }
-        
+
         // Validate file type
         if (!file.type.startsWith('image/')) {
-            alert('Please select an image file');
-            return;
+            alert(`${file.name} is not an image file`);
+            continue;
         }
-        
-        imageFile.value = file;
-        
+
+        imageFiles.value.push(file);
+
         // Create preview
         const reader = new FileReader();
         reader.onload = (e) => {
-            imagePreview.value = e.target?.result as string;
+            imagePreviews.value.push(e.target?.result as string);
         };
         reader.readAsDataURL(file);
     }
 };
 
-// Remove selected image
-const removeImage = () => {
-    imageFile.value = null;
-    imagePreview.value = null;
+// Remove specific image by index
+const removeImage = (index: number) => {
+    imageFiles.value.splice(index, 1);
+    imagePreviews.value.splice(index, 1);
+
     // Reset file input
-    const fileInput = document.getElementById('image-upload') as HTMLInputElement;
+    const fileInput = document.getElementById(
+        'image-upload',
+    ) as HTMLInputElement;
     if (fileInput) fileInput.value = '';
 };
 
@@ -69,20 +84,21 @@ const submitPost = async () => {
     isSubmitting.value = true;
 
     try {
-        // Create FormData for multipart upload
         const formData = new FormData();
         formData.append('content', content.value.trim());
-        
-        if (imageFile.value) {
-            formData.append('image', imageFile.value);
-        }
+
+        // Append all images
+        imageFiles.value.forEach((file) => {
+            formData.append('images[]', file);
+        });
 
         await router.post('/posts', formData, {
             preserveState: false,
-            forceFormData: true, // Force Inertia to use FormData
+            forceFormData: true,
             onSuccess: () => {
                 content.value = '';
-                removeImage();
+                imageFiles.value = [];
+                imagePreviews.value = [];
                 emit('posted');
                 emit('close');
             },
@@ -101,12 +117,12 @@ const submitPost = async () => {
 const closeModal = () => {
     if (!isSubmitting.value) {
         content.value = '';
-        removeImage();
+        imageFiles.value = [];
+        imagePreviews.value = [];
         emit('close');
     }
 };
 
-// Close modal on Escape key
 const handleKeydown = (event: KeyboardEvent) => {
     if (event.key === 'Escape') {
         closeModal();
@@ -115,24 +131,38 @@ const handleKeydown = (event: KeyboardEvent) => {
 </script>
 
 <template>
-    <div 
-        v-if="props.isOpen" 
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+    <div
+        v-if="props.isOpen"
+        class="bg-opacity-30 fixed inset-0 z-50 flex items-center justify-center bg-gray-400 backdrop-blur-sm"
         @click.self="closeModal"
         @keydown="handleKeydown"
         tabindex="0"
     >
-        <div class="w-full max-w-lg mx-4 bg-white rounded-2xl shadow-xl">
+        <div
+            class="mx-4 max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white shadow-xl"
+        >
             <!-- Header -->
-            <div class="flex items-center justify-between p-4 border-b border-gray-200">
+            <div
+                class="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 bg-white p-4"
+            >
                 <h3 class="text-lg font-semibold text-gray-900">Create Post</h3>
-                <button 
+                <button
                     @click="closeModal"
                     :disabled="isSubmitting"
-                    class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors disabled:opacity-50"
+                    class="rounded-full p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 disabled:opacity-50"
                 >
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    <svg
+                        class="h-5 w-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12"
+                        ></path>
                     </svg>
                 </button>
             </div>
@@ -141,13 +171,19 @@ const handleKeydown = (event: KeyboardEvent) => {
             <div class="p-4">
                 <form @submit.prevent="submitPost">
                     <!-- User Info -->
-                    <div class="flex items-start space-x-3 mb-4">
-                        <div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-medium text-sm">
+                    <div class="mb-4 flex items-start space-x-3">
+                        <div
+                            class="flex h-10 w-10 items-center justify-center rounded-full bg-blue-500 text-sm font-medium text-white"
+                        >
                             {{ user.name.charAt(0).toUpperCase() }}
                         </div>
                         <div class="flex-1">
-                            <p class="font-medium text-gray-900">{{ user.name }}</p>
-                            <p class="text-sm text-gray-500">@{{ user.email.split('@')[0] }}</p>
+                            <p class="font-medium text-gray-900">
+                                {{ user.name }}
+                            </p>
+                            <p class="text-sm text-gray-500">
+                                @{{ user.email.split('@')[0] }}
+                            </p>
                         </div>
                     </div>
 
@@ -156,49 +192,107 @@ const handleKeydown = (event: KeyboardEvent) => {
                         <textarea
                             v-model="content"
                             placeholder="What's happening?"
-                            class="text-black w-full min-h-[120px] p-3 text-lg border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            :class="{ 'border-red-500 focus:ring-red-500': isOverLimit }"
+                            class="min-h-[120px] w-full resize-none rounded-lg border border-gray-300 p-3 text-lg text-black focus:border-transparent focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                            :class="{
+                                'border-red-500 focus:ring-red-500':
+                                    isOverLimit,
+                            }"
                             :disabled="isSubmitting"
                         ></textarea>
-                        
-                        <!-- Image Preview -->
-                        <div v-if="imagePreview" class="relative mt-3">
-                            <img :src="imagePreview" alt="Preview" class="w-full rounded-lg border border-gray-200" />
-                            <button
-                                type="button"
-                                @click="removeImage"
-                                class="absolute top-2 right-2 p-1.5 bg-gray-900 bg-opacity-75 text-white rounded-full hover:bg-opacity-90 transition-colors"
-                                :disabled="isSubmitting"
+
+                        <!-- Image Previews Grid -->
+                        <div
+                            v-if="imagePreviews.length > 0"
+                            class="mt-3 grid gap-2"
+                            :class="{
+                                'grid-cols-1': imagePreviews.length === 1,
+                                'grid-cols-2': imagePreviews.length > 1,
+                            }"
+                        >
+                            <div
+                                v-for="(preview, index) in imagePreviews"
+                                :key="index"
+                                class="relative"
                             >
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                                </svg>
-                            </button>
-                        </div>
-                        
-                        <!-- Character Count -->
-                        <div class="flex justify-between items-center mt-2">
-                            <div class="text-sm text-gray-500">
-                                <span :class="{ 'text-red-500': isOverLimit }">
-                                    {{ characterCount }}/280
-                                </span>
+                                <img
+                                    :src="preview"
+                                    :alt="`Preview ${index + 1}`"
+                                    class="h-48 w-full rounded-lg border border-gray-200 object-cover"
+                                />
+                                <button
+                                    type="button"
+                                    @click="removeImage(index)"
+                                    class="bg-opacity-75 hover:bg-opacity-90 absolute top-2 right-2 rounded-full bg-gray-900 p-1.5 text-white transition-colors"
+                                    :disabled="isSubmitting"
+                                >
+                                    <svg
+                                        class="h-4 w-4"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            stroke-width="2"
+                                            d="M6 18L18 6M6 6l12 12"
+                                        ></path>
+                                    </svg>
+                                </button>
                             </div>
-                            <div class="w-8 h-8">
-                                <svg class="w-full h-full transform -rotate-90">
+                        </div>
+
+                        <!-- Character Count -->
+                        <div class="mt-2 flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <div class="text-sm text-gray-500">
+                                    <span
+                                        :class="{ 'text-red-500': isOverLimit }"
+                                    >
+                                        {{ characterCount }}/280
+                                    </span>
+                                </div>
+                                <div
+                                    v-if="imagePreviews.length > 0"
+                                    class="text-sm text-gray-500"
+                                >
+                                    • {{ imagePreviews.length }}/{{
+                                        maxImages
+                                    }}
+                                    images
+                                </div>
+                            </div>
+                            <div class="h-8 w-8">
+                                <svg class="h-full w-full -rotate-90 transform">
                                     <circle
-                                        cx="16" cy="16" r="14"
+                                        cx="16"
+                                        cy="16"
+                                        r="14"
                                         fill="none"
                                         stroke="#e5e7eb"
                                         stroke-width="4"
                                     />
                                     <circle
-                                        cx="16" cy="16" r="14"
+                                        cx="16"
+                                        cy="16"
+                                        r="14"
                                         fill="none"
-                                        :stroke="isOverLimit ? '#ef4444' : '#3b82f6'"
+                                        :stroke="
+                                            isOverLimit ? '#ef4444' : '#3b82f6'
+                                        "
                                         stroke-width="4"
                                         stroke-linecap="round"
                                         :stroke-dasharray="2 * Math.PI * 14"
-                                        :stroke-dashoffset="2 * Math.PI * 14 * (1 - Math.min(characterCount / 280, 1))"
+                                        :stroke-dashoffset="
+                                            2 *
+                                            Math.PI *
+                                            14 *
+                                            (1 -
+                                                Math.min(
+                                                    characterCount / 280,
+                                                    1,
+                                                ))
+                                        "
                                         class="transition-all duration-300"
                                     />
                                 </svg>
@@ -207,20 +301,42 @@ const handleKeydown = (event: KeyboardEvent) => {
                     </div>
 
                     <!-- Actions -->
-                    <div class="flex items-center justify-between pt-4 border-t border-gray-200">
+                    <div
+                        class="flex items-center justify-between border-t border-gray-200 pt-4"
+                    >
                         <div class="flex items-center space-x-4">
                             <!-- Image Upload Button -->
-                            <label class="cursor-pointer p-2 text-blue-500 hover:bg-blue-50 rounded-full transition-colors">
+                            <label
+                                class="cursor-pointer rounded-full p-2 text-blue-500 transition-colors hover:bg-blue-50"
+                                :class="{
+                                    'cursor-not-allowed opacity-50':
+                                        imageFiles.length >= maxImages,
+                                }"
+                            >
                                 <input
                                     id="image-upload"
                                     type="file"
                                     accept="image/*"
+                                    multiple
                                     class="hidden"
                                     @change="handleImageSelect"
-                                    :disabled="isSubmitting"
+                                    :disabled="
+                                        isSubmitting ||
+                                        imageFiles.length >= maxImages
+                                    "
                                 />
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                <svg
+                                    class="h-5 w-5"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                    ></path>
                                 </svg>
                             </label>
                         </div>
@@ -228,12 +344,27 @@ const handleKeydown = (event: KeyboardEvent) => {
                         <button
                             type="submit"
                             :disabled="!canPost"
-                            class="px-6 py-2 bg-blue-500 text-white font-medium rounded-full hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                            class="rounded-full bg-blue-500 px-6 py-2 font-medium text-white transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:bg-gray-300"
                         >
                             <span v-if="isSubmitting" class="flex items-center">
-                                <svg class="w-4 h-4 mr-2 animate-spin" fill="none" viewBox="0 0 24 24">
-                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                <svg
+                                    class="mr-2 h-4 w-4 animate-spin"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <circle
+                                        class="opacity-25"
+                                        cx="12"
+                                        cy="12"
+                                        r="10"
+                                        stroke="currentColor"
+                                        stroke-width="4"
+                                    ></circle>
+                                    <path
+                                        class="opacity-75"
+                                        fill="currentColor"
+                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                    ></path>
                                 </svg>
                                 Posting...
                             </span>

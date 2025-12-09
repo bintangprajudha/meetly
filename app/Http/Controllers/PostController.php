@@ -94,32 +94,35 @@ class PostController extends Controller
 
     public function store(Request $request)
     {
-        // Validate and use the validated data array to avoid accessing missing properties
         $validated = $request->validate([
             'content' => 'required|string|max:280',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048', // max 2MB
+            'images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048', // Multiple images
+            'images' => 'nullable|array|max:4', // Max 4 images
         ]);
-    
-        $imagePath = null;
-        
-        // Handle image upload if present
-        if ($request->hasFile('image')) {
-            $imagePath = $request->file('image')->store('posts', 'public');
+
+        $imagePaths = [];
+
+        // Handle multiple image uploads
+        if ($request->hasFile('images')) {
+            foreach ($request->file('images') as $image) {
+                $path = $image->store('posts', 'public');
+                $imagePaths[] = asset('storage/' . $path);
+            }
         }
-    
+
         $post = Post::create([
             'user_id' => Auth::id(),
             'content' => $validated['content'],
-            'image_url' => $imagePath ? asset('storage/' . $imagePath) : null,
+            'images' => !empty($imagePaths) ? $imagePaths : null,
         ]);
-    
+
         Log::info('Post created successfully', [
             'post_id' => $post->id,
             'user_id' => Auth::id(),
             'content_length' => strlen((string) ($validated['content'] ?? '')),
-            'has_image' => !is_null($imagePath),
+            'images_count' => count($imagePaths),
         ]);
-    
+
         return redirect()->back()->with('success', 'Post created successfully!');
     }
 
