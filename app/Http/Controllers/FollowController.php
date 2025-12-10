@@ -2,18 +2,21 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller; // 🔥 WAJIB! Ini yang hilang
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
+use App\Http\Controllers\Controller;
 
 class FollowController extends Controller
 {
-   
-
     public function store(User $user)
     {
+        /** @var \App\Models\User|null $me */
         $me = Auth::user();
+
+        if (!$me) {
+            return redirect()->back()->with('error', 'Anda harus login terlebih dahulu.');
+        }
 
         if ($me->id === $user->id) {
             return redirect()->back()->with('error', 'Tidak bisa follow diri sendiri.');
@@ -30,7 +33,12 @@ class FollowController extends Controller
 
     public function destroy(User $user)
     {
+        /** @var \App\Models\User|null $me */
         $me = Auth::user();
+
+        if (!$me) {
+            return redirect()->back()->with('error', 'Anda harus login terlebih dahulu.');
+        }
 
         if (!$me->isFollowing($user)) {
             return redirect()->back()->with('info', 'Anda belum mengikuti user ini.');
