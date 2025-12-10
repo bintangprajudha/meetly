@@ -24,15 +24,16 @@ class UserController extends Controller
             ->get();
         $likedPosts = $user->likes()->with('user')->latest()->get();
 
+        /** @var \App\Models\User|null $authUser */
+        $authUser = Auth::user();
+
         return Inertia::render('UserProfile', [
             'profileUser' => $user,
             'posts' => $posts,
             'postsCount' => $posts->count(),
-            'isFollowing' => auth()->check()
-                ? auth()->user()->isFollowing($user)
-                : false,
+            'isFollowing' => $authUser ? $authUser->isFollowing($user) : false,
             'auth' => [
-                'user' => Auth::user()
+                'user' => $authUser
             ],
             'likedPosts' => $likedPosts ?? []
         ]);
