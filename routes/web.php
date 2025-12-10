@@ -5,9 +5,10 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\PostController;
-use App\Http\Controllers\CommentController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\FollowController;
+use App\Http\Controllers\CommentController;
+use App\Http\Controllers\MessageController;
 
 Route::get('/', function () {
     return Inertia::render('Home');
@@ -66,9 +67,12 @@ Route::middleware(['web', 'auth'])->group(function () {
     // Toggle bookmark
     Route::post('/posts/{post}/bookmark', [PostController::class, 'toggleBookmark'])->name('posts.bookmark');
 
-    // Bookmarks and Likes pages
-    Route::get('/bookmarks', [PostController::class, 'bookmarks'])->name('bookmarks');
-    Route::get('/likes', [PostController::class, 'likes'])->name('likes');
+    Route::get('/chat/{user}', [MessageController::class, 'index'])->name('messages.index');
+
+    // "API" untuk frontend (session auth)
+    Route::get('/api/messages', [MessageController::class, 'list'])->name('messages.list');
+    Route::get('/api/messages/{user}', [MessageController::class, 'fetch'])->name('messages.fetch');
+    Route::post('/api/messages', [MessageController::class, 'send'])->name('messages.send');
 
 });
 
