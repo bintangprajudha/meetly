@@ -17,7 +17,7 @@ import { Link } from '@inertiajs/vue3';
 
         <!-- Logo -->
         <div class="absolute top-6 left-6">
-            <img src="Group 1.png" alt="Logo Meetly" class="w-25 h-auto" />
+            <img src="logo.png" alt="Logo Meetly" class="w-25 h-auto" />
         </div>
 
 
