@@ -4,10 +4,8 @@ import AuthLayout from '@/layouts/AuthLayout.vue';
 import { Link, useForm } from '@inertiajs/vue3';
 
 const form = useForm({
-    first_name: '',
-    last_name: '',
+    name: '',
     email: '',
-    phone: '',
     password: '',
     password_confirmation: '',
     terms: false,
@@ -36,22 +34,22 @@ const submit = () => {
         <form @submit.prevent="submit" class="space-y-4">
 
             <!-- NAMA DEPAN / BELAKANG -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
                 <div>
-                    <label class="text-sm text-gray-700">Nama Depan</label>
-                    <input v-model="form.first_name" type="text" required
+                    <label class="text-sm text-gray-700">Username</label>
+                    <input v-model="form.name" type="text" required
                         class="w-full rounded-lg border border-gray-300 px-3 py-2 text-black shadow-sm focus:border-red-500 focus:ring-red-500"
-                        placeholder="Nama Depan">
-                    <div v-if="form.errors.first_name" class="text-sm text-red-600">{{ form.errors.first_name }}</div>
+                        placeholder="asepcongke">
+                    <div v-if="form.errors.name" class="text-sm text-red-600">{{ form.errors.name }}</div>
                 </div>
 
-                <div>
+                <!-- <div>
                     <label class="text-sm text-gray-700">Nama Belakang</label>
                     <input v-model="form.last_name" type="text" required
                         class="w-full rounded-lg border border-gray-300 px-3 py-2 text-black shadow-sm focus:border-red-500 focus:ring-red-500"
                         placeholder="Nama Belakang">
                     <div v-if="form.errors.last_name" class="text-sm text-red-600">{{ form.errors.last_name }}</div>
-                </div>
+                </div> -->
             </div>
 
             <!-- EMAIL -->
@@ -64,13 +62,13 @@ const submit = () => {
             </div>
 
             <!-- TELEPON -->
-            <div>
+            <!-- <div>
                 <label class="text-sm text-gray-700">Nomor Telepon</label>
                 <input v-model="form.phone" type="tel"
                     class="w-full rounded-lg border border-gray-300 px-3 py-2 text-black shadow-sm focus:border-red-500 focus:ring-red-500"
                     placeholder="+62 81234567890">
                 <div v-if="form.errors.phone" class="text-sm text-red-600">{{ form.errors.phone }}</div>
-            </div>
+            </div> -->
 
             <!-- PASSWORD -->
             <div>
