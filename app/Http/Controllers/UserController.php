@@ -28,8 +28,8 @@ class UserController extends Controller
             'profileUser' => $user,
             'posts' => $posts,
             'postsCount' => $posts->count(),
-            'isFollowing' => Auth::check()
-                ? Auth::user()->isFollowing($user)
+            'isFollowing' => auth()->check()
+                ? auth()->user()->isFollowing($user)
                 : false,
             'auth' => [
                 'user' => Auth::user()
