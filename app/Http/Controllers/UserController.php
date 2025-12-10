@@ -88,6 +88,27 @@ class UserController extends Controller
             ->values();
 
         $likedPosts = $user->likes()->with('user')->latest()->get();
+        /** @var \App\Models\User|null $authUser */
+        $authUser = Auth::user();
+        $authUserId = $authUser ? $authUser->id : null;
+
+        // Get user's posts with eager loading and counts
+        $posts = Post::with('user')
+            ->where('user_id', $user->id)
+            ->withCount(['likes', 'bookmarks', 'comments'])
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($post) use ($authUserId) {
+                if ($authUserId) {
+                    $post->liked = $post->likes()->where('user_id', $authUserId)->exists();
+                    $post->bookmarked = $post->bookmarks()->where('user_id', $authUserId)->exists();
+                } else {
+                    $post->liked = false;
+                    $post->bookmarked = false;
+                }
+                $post->replies_count = $post->comments_count;
+                return $post;
+            });
 
         // Get liked posts with proper counts and status
         $likedPosts = $user->likes()

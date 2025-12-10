@@ -357,6 +357,7 @@ const unfollowUser = async () => {
                     </div>
                 </div>
             </div>
+            </div>
         </main>
 
             <PostModal
