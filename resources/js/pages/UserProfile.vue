@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { Head, router, usePage } from '@inertiajs/vue3';
 import { ref } from 'vue';
 
 import PostModal from '@/components/PostModal.vue';
@@ -162,6 +162,7 @@ const unfollowUser = async () => {
                             >
                                 {{ getInitials(profileUser.name) }}
                             </div>
+
                         </div>
 
                         <!-- Edit / Follow -->
@@ -195,6 +196,7 @@ const unfollowUser = async () => {
                                 <div class="text-center flex items-center gap-1">
                                     <p class="font-bold text-gray-900">{{ profileUser.followers_count }}</p>
                                     <p class="text-gray-600 text-sm">Followers</p>
+
                                 </div>
                             </div>
 
