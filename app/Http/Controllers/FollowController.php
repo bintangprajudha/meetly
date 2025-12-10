@@ -2,40 +2,49 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller; 
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
+use App\Http\Controllers\Controller;
 
 class FollowController extends Controller
 {
-   
-
     public function store(User $user)
     {
+        /** @var \App\Models\User|null $me */
+        $me = Auth::user();
 
-        if (Auth::user()->id === $user->id) {
+        if (!$me) {
+            return redirect()->back()->with('error', 'Anda harus login terlebih dahulu.');
+        }
+
+        if ($me->id === $user->id) {
             return redirect()->back()->with('error', 'Tidak bisa follow diri sendiri.');
         }
 
-        if (User::isFollowing($user)) {
+        if ($me->isFollowing($user)) {
             return redirect()->back()->with('info', 'Anda sudah mengikuti user ini.');
         }
 
-        User::follow($user);
+        $me->follow($user);
 
         return redirect()->back()->with('success', 'Berhasil mengikuti ' . $user->name);
     }
 
     public function destroy(User $user)
     {
+        /** @var \App\Models\User|null $me */
         $me = Auth::user();
 
-        if (!User::isFollowing($user)) {
+        if (!$me) {
+            return redirect()->back()->with('error', 'Anda harus login terlebih dahulu.');
+        }
+
+        if (!$me->isFollowing($user)) {
             return redirect()->back()->with('info', 'Anda belum mengikuti user ini.');
         }
 
-        User::unfollow($user);
+        $me->unfollow($user);
 
         return redirect()->back()->with('success', 'Berhenti mengikuti ' . $user->name);
     }

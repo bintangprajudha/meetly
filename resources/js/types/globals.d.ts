@@ -15,12 +15,6 @@ declare module 'vite/client' {
 
 declare module '@inertiajs/core' {
     interface PageProps extends InertiaPageProps, AppPageProps {}
-    export interface PageProps {
-        auth?: {
-            user: User;
-        };
-        chatUser?: User;
-    }
 }
 
 declare module 'vue' {
@@ -29,12 +23,4 @@ declare module 'vue' {
         $page: Page;
         $headManager: ReturnType<typeof createHeadManager>;
     }
-}
-
-export {};
-
-declare global {
-  interface Window {
-    Echo: any;
-  }
 }
