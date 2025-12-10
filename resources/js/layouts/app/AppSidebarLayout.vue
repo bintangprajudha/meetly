@@ -36,113 +36,123 @@ const handlePostCreated = () => {
 
 <template>
   <div class="min-h-screen w-screen flex bg-gray-50">
-    <!-- Sidebar dengan hover effect -->
-    <aside
-      class="group fixed left-0 top-0 z-50 h-screen w-16 hover:w-48 bg-white shadow-lg border-r border-gray-200 transition-all duration-300 ease-in-out">
-      <div class="flex flex-col h-full py-4">
-        <!-- Logo -->
-        <div class="px-2 mb-4 flex items-center justify-center">
-          <a href="/dashboard"
-            class="w-7 h-7 flex items-center justify-center flex-shrink-0 px-3 py-2.5 bg-blue-600 rounded-xl text-white hover:bg-blue-700 transition-colors">
-            <div class="w-6 h-6 flex items-center justify-center font-bold text-sm flex-shrink-0">
-              M
-            </div>
 
+    <!-- Sidebar -->
+    <aside
+      class="group fixed left-0 top-0 z-50 h-screen w-16 hover:w-48 bg-white border-r border-gray-200 shadow transition-all duration-300 ease-in-out">
+      <div class="flex flex-col h-full py-4">
+
+        <!-- Logo -->
+        <div class="px-2 mb-6 flex items-center justify-center">
+          <a href="/dashboard" class="w-10 h-10 flex items-center justify-center">
+            <img src="logo.png" alt="Logo Meetly" class="w-100 h-100 object-contain" />
           </a>
         </div>
 
-        <!-- Navigation Items (Center) -->
+        <!-- Navigation Items -->
         <div class="flex-1 flex items-center justify-start">
-          <nav class="flex flex-col space-y-2 w-full px-2">
-            <!-- Create Post -->
+          <nav class="flex flex-col space-y-8 w-full px-3">
+
+            <!-- Home -->
             <div>
-              <button @click="openPostModal"
-                class="w-full flex items-center px-3 py-2.5 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors"
-                title="Create Post">
-                <svg class="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+              <Link href="/dashboard" class="w-full flex items-center text-[#D84040] transition" title="Home">
+                <svg class="w-6 h-6" fill="#D84040" viewBox="0 0 24 24">
+                  <path d="M3 11L12 3l9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1v-9z" />
                 </svg>
-                <span class="ml-3 font-medium whitespace-nowrap hidden group-hover:block">
-                  Create Post
+
+                <!-- TEXT SAMPING -->
+                <span class="ml-4 whitespace-nowrap hidden group-hover:block text-[#D84040] font-medium">
+                  Home
                 </span>
-              </button>
+              </Link>
+            </div>
+
+            <!-- Profile -->
+            <div>
+              <a :href="`/${user.name}`" class="w-full flex items-center text-[#D84040] transition" title="Profile">
+                <svg class="w-6 h-6" fill="none" stroke="#D84040" viewBox="0 0 24 24">
+                  <circle cx="12" cy="7" r="4" stroke-width="2" />
+                  <path d="M5.5 21a7.5 7.5 0 0 1 13 0" stroke-width="2" />
+                </svg>
+
+                <span class="ml-4 whitespace-nowrap hidden group-hover:block text-[#D84040] font-medium">
+                  Profile
+                </span>
+              </a>
             </div>
 
             <!-- Bookmark -->
             <div>
-              <Link href="/bookmarks"
-                class="w-full flex items-center px-3 py-2.5 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors"
-                title="Bookmarks">
-                <svg class="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <Link href="/bookmarks" class="w-full flex items-center text-[#D84040] transition" title="Bookmarks">
+                <svg class="w-6 h-6" fill="none" stroke="#D84040" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path>
+                    d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
                 </svg>
-                <span class="ml-3 font-medium whitespace-nowrap hidden group-hover:block">
+
+                <span class="ml-4 whitespace-nowrap hidden group-hover:block text-[#D84040] font-medium">
                   Bookmarks
                 </span>
               </Link>
             </div>
 
+            <!-- Create Post -->
             <div>
-              <Link :href="`/chat/${user.id}`"
-                class="w-full flex items-center px-3 py-2.5 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors"
-                title="Messages">
-
-                <!-- Icon Message -->
-                <svg class="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2"
-                  viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round"
-                    d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.77 9.77 0 01-4-.8l-4 1 1-3.6A7.7 7.7 0 013 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              <button @click="openPostModal" class="w-full flex items-center text-[#D84040] transition"
+                title="Create Post">
+                <svg class="w-6 h-6" fill="none" stroke="#D84040" viewBox="0 0 24 24">
+                  <rect x="5" y="5" width="14" height="14" rx="2" stroke-width="2" />
+                  <path stroke-linecap="round" stroke-width="2" d="M12 8v8m-4-4h8" />
                 </svg>
 
-                <span class="ml-3 font-medium whitespace-nowrap hidden group-hover:block">
+                <span class="ml-4 whitespace-nowrap hidden group-hover:block text-[#D84040] font-medium">
+                  Create Post
+                </span>
+              </button>
+            </div>
+
+            <!-- Messages -->
+            <div>
+              <Link href="/messages" class="w-full flex items-center text-[#D84040] transition" title="Messages">
+                <svg class="w-6 h-6" fill="none" stroke="#D84040" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M8 10h8m-8 4h5m1 6l-4-3H6a2 2 0 01-2-2V6a2 2 0 012-2h12a2 2 0 012 2v9a2 2 0 01-2 2h-3l-4 3z" />
+                </svg>
+
+                <span class="ml-4 whitespace-nowrap hidden group-hover:block text-[#D84040] font-medium">
                   Messages
                 </span>
               </Link>
             </div>
-            
 
-            <!-- Profile -->
-            <div>
-              <a :href="`/${user.name}`"
-                class="w-full flex items-center px-3 py-2.5 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors"
-                title="Profile">
-                <div
-                  class="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white font-medium text-xs flex-shrink-0">
-                  {{ user.name.charAt(0).toUpperCase() }}
-                </div>
-                <span class="ml-3 font-medium whitespace-nowrap hidden group-hover:block">
-                  Profile
-                </span>
-              </a>
-            </div>
           </nav>
         </div>
 
-        <!-- Logout (Bottom) -->
-        <div class="px-2">
-          <Link href="/logout" method="post" as="button"
-            class="w-full flex items-center px-3 py-2.5 text-gray-700 hover:bg-red-50 hover:text-red-600 rounded-lg transition-colors"
+
+
+        <!-- Logout -->
+        <div class="px-4 mb-3 mt-auto">
+          <Link href="/logout" method="post" as="button" class="w-full flex items-center text-[#D84040] transition"
             title="Logout">
-            <svg class="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg">
+            <svg class="w-6 h-6 flex-shrink-0" fill="none" stroke="#D84040" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1">
+              </path>
             </svg>
-            <span class="ml-3 font-medium whitespace-nowrap hidden group-hover:block">
+            <span class="ml-4 whitespace-nowrap hidden group-hover:block text-[#D84040] font-medium">
               Logout
             </span>
           </Link>
         </div>
+
       </div>
     </aside>
 
-    <!-- Main content dengan dynamic margin -->
+
+    <!-- Main Content -->
     <main class="ml-16 flex-1 min-h-screen transition-all duration-300 ease-in-out">
       <slot />
     </main>
 
-    <!-- Post Modal -->
     <PostModal :is-open="showPostModal" :user="user as any" @close="closePostModal" @posted="handlePostCreated" />
   </div>
 </template>
