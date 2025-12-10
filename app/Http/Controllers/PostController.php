@@ -160,13 +160,13 @@ class PostController extends Controller
             $query->where('user_id', $userId);
         })
             ->with('user')
-            ->withCount('likes')
-            ->withCount('bookmarks')
+            ->withCount(['likes', 'bookmarks', 'comments'])
             ->orderBy('created_at', 'desc')
             ->get()
             ->map(function ($post) use ($userId) {
                 $post->liked = true; // Since we're on the likes page, these are liked
                 $post->bookmarked = $post->bookmarks()->where('user_id', $userId)->exists();
+                $post->replies_count = $post->comments_count;
                 return $post;
             });
 
@@ -184,13 +184,13 @@ class PostController extends Controller
             $query->where('user_id', $userId);
         })
             ->with('user')
-            ->withCount('likes')
-            ->withCount('bookmarks')
+            ->withCount(['likes', 'bookmarks', 'comments'])
             ->orderBy('created_at', 'desc')
             ->get()
             ->map(function ($post) use ($userId) {
                 $post->liked = $post->likes()->where('user_id', $userId)->exists();
                 $post->bookmarked = true; // Since we're on the bookmarks page, these are bookmarked
+                $post->replies_count = $post->comments_count;
                 return $post;
             });
 

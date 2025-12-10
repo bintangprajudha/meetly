@@ -29,9 +29,18 @@ Route::middleware(['guest'])->group(function () {
 // Authenticated routes (only accessible when logged in)
 Route::middleware(['web', 'auth'])->group(function () {
     Route::get('/dashboard', function () {
+        $userId = Auth::id();
+        
         $posts = \App\Models\Post::with('user')
+            ->withCount(['likes', 'bookmarks', 'comments'])
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->get()
+            ->map(function ($post) use ($userId) {
+                $post->liked = $post->likes()->where('user_id', $userId)->exists();
+                $post->bookmarked = $post->bookmarks()->where('user_id', $userId)->exists();
+                $post->replies_count = $post->comments_count;
+                return $post;
+            });
 
         return Inertia::render('Dashboard', [
             'user' => Auth::user(),
