@@ -36,7 +36,7 @@ class PostController extends Controller
 
         // Get all reposts and transform them into post-like objects for the feed
         $reposts = Repost::with(['user', 'post' => function ($query) {
-            $query->with('user');
+            $query->with('user')->withCount(['likes', 'bookmarks', 'reposts']);
         }])
         ->orderBy('created_at', 'desc')
         ->get()
@@ -64,13 +64,13 @@ class PostController extends Controller
                     'name' => $originalPost->user->name,
                     'email' => $originalPost->user->email,
                 ],
-                'likes_count' => 0,
-                'bookmarks_count' => 0,
-                'reposts_count' => 0,
-                'replies_count' => 0,
-                'liked' => false,
-                'bookmarked' => false,
-                'reposted' => false,
+                'likes_count' => $originalPost->likes_count ?? $originalPost->likes()->count(),
+                'bookmarks_count' => $originalPost->bookmarks_count ?? $originalPost->bookmarks()->count(),
+                'reposts_count' => $originalPost->reposts_count ?? $originalPost->reposts()->count(),
+                'replies_count' => $originalPost->comments()->count(),
+                'liked' => $userId ? $originalPost->likes()->where('user_id', $userId)->exists() : false,
+                'bookmarked' => $userId ? $originalPost->bookmarks()->where('user_id', $userId)->exists() : false,
+                'reposted' => $userId ? $originalPost->reposts()->where('user_id', $userId)->exists() : false,
             ];
         });
 
