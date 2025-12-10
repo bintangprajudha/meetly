@@ -28,7 +28,7 @@ Route::middleware(['guest'])->group(function () {
 // Authenticated routes (only accessible when logged in)
 Route::middleware(['web', 'auth'])->group(function () {
     Route::get('/dashboard', function () {
-        $posts = \App\Models\Post::with(['user', 'comments.user'])
+        $posts = \App\Models\Post::with('user')
             ->orderBy('created_at', 'desc')
             ->get();
 
