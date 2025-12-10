@@ -28,7 +28,7 @@ Route::middleware(['guest'])->group(function () {
 // Authenticated routes (only accessible when logged in)
 Route::middleware(['web', 'auth'])->group(function () {
     Route::get('/dashboard', function () {
-        $posts = \App\Models\Post::with(['user', 'comments.user'])
+        $posts = \App\Models\Post::with('user')
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -56,6 +56,10 @@ Route::middleware(['web', 'auth'])->group(function () {
     Route::post('/posts/{post}/like', [PostController::class, 'toggleLike'])->name('posts.like');
     // Toggle bookmark
     Route::post('/posts/{post}/bookmark', [PostController::class, 'toggleBookmark'])->name('posts.bookmark');
+
+    // Likes and Bookmarks pages
+    Route::get('/likes', [PostController::class, 'likes'])->name('posts.likes');
+    Route::get('/bookmarks', [PostController::class, 'bookmarks'])->name('posts.bookmarks');
 
 });
 
