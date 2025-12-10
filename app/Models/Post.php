@@ -20,6 +20,7 @@ class Post extends Model
         'likes_count',
         'bookmarks_count',
         'replies_count',
+        'reposts_count',
     ];
 
     protected $casts = [
@@ -38,6 +39,10 @@ class Post extends Model
         return $this->hasMany(Comment::class);
     }
 
+    public function reposts(): HasMany
+    {
+        return $this->hasMany(Repost::class);
+    }
 
     public function likes(): BelongsToMany
     {

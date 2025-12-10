@@ -8,6 +8,7 @@ use App\Http\Controllers\PostController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\FollowController;
+use App\Http\Controllers\RepostController;
 
 Route::get('/', function () {
     return Inertia::render('Home');
@@ -27,16 +28,7 @@ Route::middleware(['guest'])->group(function () {
 
 // Authenticated routes (only accessible when logged in)
 Route::middleware(['web', 'auth'])->group(function () {
-    Route::get('/dashboard', function () {
-        $posts = \App\Models\Post::with(['user', 'comments.user'])
-            ->orderBy('created_at', 'desc')
-            ->get();
-
-        return Inertia::render('Dashboard', [
-            'user' => Auth::user(),
-            'posts' => $posts,
-        ]);
-    })->name('dashboard');
+    Route::get('/dashboard', [PostController::class, 'index'])->name('dashboard');
 
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
@@ -57,6 +49,11 @@ Route::middleware(['web', 'auth'])->group(function () {
     // Toggle bookmark
     Route::post('/posts/{post}/bookmark', [PostController::class, 'toggleBookmark'])->name('posts.bookmark');
 
+    // Repost routes
+    Route::post('/posts/{post}/repost', [RepostController::class, 'store'])->name('posts.repost');
+    Route::delete('/reposts/{repost}', [RepostController::class, 'destroy'])->name('reposts.destroy');
+    Route::get('/posts/{post}/reposts', [RepostController::class, 'getReposts'])->name('posts.reposts');
+    Route::get('/posts/{post}/has-reposted', [RepostController::class, 'hasUserReposted'])->name('posts.has-reposted');
 });
 
 Route::get('/users/{user}/followers', [FollowController::class, 'followers'])->name('users.followers');
@@ -66,4 +63,3 @@ Route::get('/users/{user}/following', [FollowController::class, 'following'])->n
 Route::get('/{username}', [UserController::class, 'show'])
     ->name('user.profile')
     ->where('username', '[A-Za-z0-9_]+'); // Only allow alphanumeric and underscore
-

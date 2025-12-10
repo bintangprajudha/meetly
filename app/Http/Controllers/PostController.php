@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Post;
+use App\Models\Repost;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -15,22 +16,74 @@ class PostController extends Controller
     {
         $userId = Auth::id();
 
+        // Get all posts
         $posts = Post::with('user')
             ->withCount('likes')
             ->withCount('bookmarks')
+            ->withCount('reposts')
             ->orderBy('created_at', 'desc')
             ->get()
             ->map(function ($post) use ($userId) {
                 $post->liked = $userId ? $post->likes()->where('user_id', $userId)->exists() : false;
                 $post->bookmarked = $userId ? $post->bookmarks()->where('user_id', $userId)->exists() : false;
+                $post->reposted = $userId ? $post->reposts()->where('user_id', $userId)->exists() : false;
                 $post->likes_count = $post->likes_count ?? $post->likes()->count();
                 $post->bookmarks_count = $post->bookmarks_count ?? $post->bookmarks()->count();
+                $post->reposts_count = $post->reposts_count ?? $post->reposts()->count();
+                $post->type = 'post';
                 return $post;
             });
 
+        // Get all reposts and transform them into post-like objects for the feed
+        $reposts = Repost::with(['user', 'post' => function ($query) {
+            $query->with('user');
+        }])
+        ->orderBy('created_at', 'desc')
+        ->get()
+        ->map(function ($repost) use ($userId) {
+            $originalPost = $repost->post;
+            
+            return (object) [
+                'id' => 'repost_' . $repost->id,
+                'type' => 'repost',
+                'repost_id' => $repost->id,
+                'user_id' => $repost->user_id,
+                'post_id' => $originalPost->id,
+                'user' => [
+                    'id' => $repost->user->id,
+                    'name' => $repost->user->name,
+                    'email' => $repost->user->email,
+                ],
+                'content' => $originalPost->content,
+                'images' => $originalPost->images,
+                'repost_caption' => $repost->caption,
+                'repost_images' => $repost->images,
+                'created_at' => $repost->created_at,
+                'original_post_user' => [
+                    'id' => $originalPost->user->id,
+                    'name' => $originalPost->user->name,
+                    'email' => $originalPost->user->email,
+                ],
+                'likes_count' => 0,
+                'bookmarks_count' => 0,
+                'reposts_count' => 0,
+                'replies_count' => 0,
+                'liked' => false,
+                'bookmarked' => false,
+                'reposted' => false,
+            ];
+        });
+
+        // Merge posts and reposts, then sort by created_at descending
+        $allFeed = collect($posts)->merge($reposts)
+            ->sortByDesc(function ($item) {
+                return strtotime($item->created_at);
+            })
+            ->values();
+
         return Inertia::render('Dashboard', [
             'user' => Auth::user(),
-            'posts' => $posts,
+            'posts' => $allFeed,
         ]);
     }
 
