@@ -54,90 +54,90 @@ const handlePostCreated = () => {
           <nav class="flex flex-col space-y-8 w-full px-3">
 
             <!-- Home -->
-            <div>
-              <Link href="/dashboard" class="w-full flex items-center text-[#D84040] transition" title="Home">
-                <svg class="w-6 h-6" fill="#D84040" viewBox="0 0 24 24">
-                  <path d="M3 11L12 3l9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1v-9z" />
-                </svg>
+            <Link href="/dashboard"
+              class="w-full flex items-center text-[#D84040] transition group px-2 py-2 hover:bg-[#FDECEC] hover:rounded-xl"
+              :class="{ 'bg-[#FDECEC] rounded-xl font-semibold': $page.url === '/dashboard' }" title="Home">
+              <svg class="w-6 h-6" fill="none" stroke="#D84040" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M3 11L12 3l9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1v-9z" stroke-linecap="round"
+                  stroke-linejoin="round" />
+              </svg>
 
-                <!-- TEXT SAMPING -->
-                <span class="ml-4 whitespace-nowrap hidden group-hover:block text-[#D84040] font-medium">
-                  Home
-                </span>
-              </Link>
-            </div>
+              <span class="ml-4 whitespace-nowrap hidden group-hover:block text-[#D84040] font-medium">
+                Home
+              </span>
+            </Link>
 
             <!-- Profile -->
-            <div>
-              <a :href="`/${user.name}`" class="w-full flex items-center text-[#D84040] transition" title="Profile">
-                <svg class="w-6 h-6" fill="none" stroke="#D84040" viewBox="0 0 24 24">
-                  <circle cx="12" cy="7" r="4" stroke-width="2" />
-                  <path d="M5.5 21a7.5 7.5 0 0 1 13 0" stroke-width="2" />
-                </svg>
+            <a :href="`/${user.name}`"
+              class="w-full flex items-center text-[#D84040] transition group px-2 py-2 hover:bg-[#FDECEC] hover:rounded-xl"
+              :class="{ 'bg-[#FDECEC] rounded-xl font-semibold': $page.url === '/' + user.name }" title="Profile">
+              <svg class="w-6 h-6" fill="none" stroke="#D84040" viewBox="0 0 24 24">
+                <circle cx="12" cy="7" r="4" stroke-width="2" />
+                <path d="M5.5 21a7.5 7.5 0 0 1 13 0" stroke-width="2" />
+              </svg>
 
-                <span class="ml-4 whitespace-nowrap hidden group-hover:block text-[#D84040] font-medium">
-                  Profile
-                </span>
-              </a>
-            </div>
+              <span class="ml-4 whitespace-nowrap hidden group-hover:block text-[#D84040] font-medium">
+                Profile
+              </span>
+            </a>
 
-            <!-- Bookmark -->
-            <div>
-              <Link href="/bookmarks" class="w-full flex items-center text-[#D84040] transition" title="Bookmarks">
-                <svg class="w-6 h-6" fill="none" stroke="#D84040" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-                </svg>
+            <!-- Bookmarks -->
+            <Link href="/bookmarks"
+              class="w-full flex items-center text-[#D84040] transition group px-2 py-2 hover:bg-[#FDECEC] hover:rounded-xl"
+              :class="{ 'bg-[#FDECEC] rounded-xl font-semibold': $page.url.startsWith('/bookmarks') }"
+              title="Bookmarks">
+              <svg class="w-6 h-6" fill="none" stroke="#D84040" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+              </svg>
 
-                <span class="ml-4 whitespace-nowrap hidden group-hover:block text-[#D84040] font-medium">
-                  Bookmarks
-                </span>
-              </Link>
-            </div>
+              <span class="ml-4 whitespace-nowrap hidden group-hover:block text-[#D84040] font-medium">
+                Bookmarks
+              </span>
+            </Link>
 
             <!-- Create Post -->
-            <div>
-              <button @click="openPostModal" class="w-full flex items-center text-[#D84040] transition"
-                title="Create Post">
-                <svg class="w-6 h-6" fill="none" stroke="#D84040" viewBox="0 0 24 24">
-                  <rect x="5" y="5" width="14" height="14" rx="2" stroke-width="2" />
-                  <path stroke-linecap="round" stroke-width="2" d="M12 8v8m-4-4h8" />
-                </svg>
+            <button @click="openPostModal"
+              class="w-full flex items-center text-[#D84040] transition group px-2 py-2 hover:bg-[#FDECEC] hover:rounded-xl"
+              title="Create Post">
+              <svg class="w-6 h-6" fill="none" stroke="#D84040" viewBox="0 0 24 24">
+                <rect x="5" y="5" width="14" height="14" rx="2" stroke-width="2" />
+                <path stroke-linecap="round" stroke-width="2" d="M12 8v8m-4-4h8" />
+              </svg>
 
-                <span class="ml-4 whitespace-nowrap hidden group-hover:block text-[#D84040] font-medium">
-                  Create Post
-                </span>
-              </button>
-            </div>
+              <span class="ml-4 whitespace-nowrap hidden group-hover:block text-[#D84040] font-medium">
+                Create Post
+              </span>
+            </button>
 
             <!-- Messages -->
-            <div>
-              <Link href="/messages" class="w-full flex items-center text-[#D84040] transition" title="Messages">
-                <svg class="w-6 h-6" fill="none" stroke="#D84040" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M8 10h8m-8 4h5m1 6l-4-3H6a2 2 0 01-2-2V6a2 2 0 012-2h12a2 2 0 012 2v9a2 2 0 01-2 2h-3l-4 3z" />
-                </svg>
+            <Link :href="`/chat/${user.id}`"
+              class="w-full flex items-center text-[#D84040] transition group px-2 py-2 hover:bg-[#FDECEC] hover:rounded-xl"
+              :class="{ 'bg-[#FDECEC] rounded-xl font-semibold': $page.url.startsWith('/chat') }" title="Messages">
+              <svg class="w-6 h-6" fill="none" stroke="#D84040" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M8 10h8m-8 4h5m1 6l-4-3H6a2 2 0 01-2-2V6a2 2 0 012-2h12a2 2 0 012 2v9a2 2 0 01-2 2h-3l-4 3z" />
+              </svg>
 
-                <span class="ml-4 whitespace-nowrap hidden group-hover:block text-[#D84040] font-medium">
-                  Messages
-                </span>
-              </Link>
-            </div>
+              <span class="ml-4 whitespace-nowrap hidden group-hover:block text-[#D84040] font-medium">
+                Messages
+              </span>
+            </Link>
 
           </nav>
         </div>
 
-
-
         <!-- Logout -->
         <div class="px-4 mb-3 mt-auto">
-          <Link href="/logout" method="post" as="button" class="w-full flex items-center text-[#D84040] transition"
+          <Link href="/logout" method="post" as="button"
+            class="w-full flex items-center text-[#D84040] transition group px-2 py-2 hover:bg-[#FDECEC] hover:rounded-xl"
             title="Logout">
             <svg class="w-6 h-6 flex-shrink-0" fill="none" stroke="#D84040" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1">
+                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 01-3-3h4a3 3 0 013 3v1">
               </path>
             </svg>
+
             <span class="ml-4 whitespace-nowrap hidden group-hover:block text-[#D84040] font-medium">
               Logout
             </span>
@@ -145,6 +145,7 @@ const handlePostCreated = () => {
         </div>
 
       </div>
+      
     </aside>
 
 
