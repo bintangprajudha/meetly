@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { Head, router, usePage } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import PostModal from '@/components/PostModal.vue';
 import PostCard from '@/components/PostCard.vue';
@@ -156,7 +156,7 @@ const unfollowUser = async () => {
                             <div class="pt-5">
                                 <h1 class="text-2xl font-bold text-gray-900">{{ profileUser.name }}</h1>
                                 <p class="text-gray-600">@{{ profileUser.name }}</p>
-                                <p class="text-gray-500 mt-1">{{ profileUser.email }}</p>
+                                  <p class="text-gray-500 mt-1">{{ profileUser.email }}</p>
                                 <!-- Stats -->
                                 <div class="flex items-center space-x-8 mt-0 pt-6">                                    
                                     <div class="text-center flex justify-evenly items-center gap-2">
