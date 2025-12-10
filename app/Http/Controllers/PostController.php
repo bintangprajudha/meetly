@@ -151,4 +151,52 @@ class PostController extends Controller
 
         return redirect()->back()->with('success', 'Post deleted successfully!');
     }
+
+    public function likes()
+    {
+        $userId = Auth::id();
+
+        $posts = Post::whereHas('likes', function ($query) use ($userId) {
+            $query->where('user_id', $userId);
+        })
+            ->with('user')
+            ->withCount('likes')
+            ->withCount('bookmarks')
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($post) use ($userId) {
+                $post->liked = true; // Since we're on the likes page, these are liked
+                $post->bookmarked = $post->bookmarks()->where('user_id', $userId)->exists();
+                return $post;
+            });
+
+        return Inertia::render('Likes', [
+            'user' => Auth::user(),
+            'posts' => $posts,
+        ]);
+    }
+
+    public function bookmarks()
+    {
+        $userId = Auth::id();
+
+        $posts = Post::whereHas('bookmarks', function ($query) use ($userId) {
+            $query->where('user_id', $userId);
+        })
+            ->with('user')
+            ->withCount('likes')
+            ->withCount('bookmarks')
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($post) use ($userId) {
+                $post->liked = $post->likes()->where('user_id', $userId)->exists();
+                $post->bookmarked = true; // Since we're on the bookmarks page, these are bookmarked
+                return $post;
+            });
+
+        return Inertia::render('Bookmarks', [
+            'user' => Auth::user(),
+            'posts' => $posts,
+        ]);
+    }
 }
