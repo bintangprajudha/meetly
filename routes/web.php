@@ -5,10 +5,11 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\PostController;
-use App\Http\Controllers\CommentController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\FollowController;
 use App\Http\Controllers\RepostController;
+use App\Http\Controllers\CommentController;
+use App\Http\Controllers\MessageController;
 
 Route::get('/', function () {
     return Inertia::render('Home');
@@ -29,6 +30,25 @@ Route::middleware(['guest'])->group(function () {
 // Authenticated routes (only accessible when logged in)
 Route::middleware(['web', 'auth'])->group(function () {
     Route::get('/dashboard', [PostController::class, 'index'])->name('dashboard');
+    Route::get('/dashboard', function () {
+        $userId = Auth::id();
+        
+        $posts = \App\Models\Post::with('user')
+            ->withCount(['likes', 'bookmarks', 'comments'])
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($post) use ($userId) {
+                $post->liked = $post->likes()->where('user_id', $userId)->exists();
+                $post->bookmarked = $post->bookmarks()->where('user_id', $userId)->exists();
+                $post->replies_count = $post->comments_count;
+                return $post;
+            });
+
+        return Inertia::render('Dashboard', [
+            'user' => Auth::user(),
+            'posts' => $posts,
+        ]);
+    })->name('dashboard');
 
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
@@ -54,6 +74,13 @@ Route::middleware(['web', 'auth'])->group(function () {
     Route::delete('/reposts/{repost}', [RepostController::class, 'destroy'])->name('reposts.destroy');
     Route::get('/posts/{post}/reposts', [RepostController::class, 'getReposts'])->name('posts.reposts');
     Route::get('/posts/{post}/has-reposted', [RepostController::class, 'hasUserReposted'])->name('posts.has-reposted');
+    Route::get('/chat/{user}', [MessageController::class, 'index'])->name('messages.index');
+
+    // "API" untuk frontend (session auth)
+    Route::get('/api/messages', [MessageController::class, 'list'])->name('messages.list');
+    Route::get('/api/messages/{user}', [MessageController::class, 'fetch'])->name('messages.fetch');
+    Route::post('/api/messages', [MessageController::class, 'send'])->name('messages.send');
+
 });
 
 Route::get('/users/{user}/followers', [FollowController::class, 'followers'])->name('users.followers');

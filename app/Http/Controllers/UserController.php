@@ -89,6 +89,24 @@ class UserController extends Controller
 
         $likedPosts = $user->likes()->with('user')->latest()->get();
 
+        // Get liked posts with proper counts and status
+        $likedPosts = $user->likes()
+            ->with('user')
+            ->withCount(['likes', 'bookmarks', 'comments'])
+            ->latest()
+            ->get()
+            ->map(function ($post) use ($authUserId) {
+                if ($authUserId) {
+                    $post->liked = $post->likes()->where('user_id', $authUserId)->exists();
+                    $post->bookmarked = $post->bookmarks()->where('user_id', $authUserId)->exists();
+                } else {
+                    $post->liked = false;
+                    $post->bookmarked = false;
+                }
+                $post->replies_count = $post->comments_count;
+                return $post;
+            });
+
         // Get user's comments/replies on other posts
         $replies = $user->comments()
             ->with(['post.user', 'user'])
@@ -130,7 +148,7 @@ class UserController extends Controller
                 ? auth()->user()->isFollowing($user)
                 : false,
             'auth' => [
-                'user' => Auth::user()
+                'user' => $authUser
             ],
             'likedPosts' => $likedPosts ?? [],
             'replies' => $replies ?? []

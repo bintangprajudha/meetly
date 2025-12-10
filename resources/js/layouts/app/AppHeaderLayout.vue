@@ -2,37 +2,30 @@
 
 <template>
     <div class="flex min-h-screen flex-col">
-    <header
-        class="flex items-center justify-between border-b border-gray-200 px-6 py-3 shadow-sm"
-        style="background-color:#D84040;"
-    >
+    <header class="flex items-center justify-between border-b border-gray-200 px-6 py-3 bg-gray-100">
         <div class="flex items-center space-x-4">
-            <h1 class="text-xl font-semibold">
-                <a href="/dashboard" class="text-white">MEETLY</a>
-            </h1>
+            <a href="/dashboard" class="flex items-center space-x-3">
+                <div class="w-8 h-8 flex items-center justify-center rounded-md">
+                    <!-- small logo icon, uses existing asset if available -->
+                </div>
+                <h1 class="text-4xl font-bold text-[#D84040]">MEETLY</h1>
+            </a>
         </div>
 
         <div class="flex items-center space-x-4">
-
             <div class="relative">
                 <input
                     type="text"
-                    placeholder="Search..."
-                    class="w-64 px-4 py-1 pl-8 pr-4 rounded-lg shadow-sm focus:outline-none"
-                    style="background-color:#F8F2DE; color:#D84040;"
+                    placeholder=""
+                    aria-label="Search"
+                    class="w-80 h-10 pl-4 pr-12 rounded-full bg-white shadow-md border border-gray-200 focus:outline-none"
                 />
-                <svg
-                    class="absolute left-2 top-2 w-4 h-4"
-                    style="color:#D84040;"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                >
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                </svg>
+                <div class="absolute right-2 top-1/2 transform -translate-y-1/2">
+                    <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                </div>
             </div>
-
         </div>
     </header>
 
