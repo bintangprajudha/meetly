@@ -3,6 +3,8 @@ import { computed, ref } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import RepostModal from './RepostModal.vue';
 import CommentModal from './CommentModal.vue';
+import ShareModal from './ShareModal.vue';
+import ImageViewerModal from './ImageViewerModal.vue';
 
 const page = usePage();
 
@@ -72,6 +74,10 @@ const reposted = ref<boolean>(props.post.reposted ?? false);
 const reposts = ref<number>(props.post.reposts_count ?? 0);
 const showRepostModal = ref(false);
 const repostLoading = ref(false);
+const showShareModal = ref(false);
+const showImageViewer = ref(false);
+const imageViewerImages = ref<string[]>([]);
+const imageViewerCurrentIndex = ref(0);
 
 const toggleLike = async () => {
     const prevLiked = liked.value;
@@ -170,6 +176,31 @@ const handleRepostSubmitted = async () => {
         method: 'get',
         preserveState: false,
     });
+};
+
+const openShareModal = () => {
+    showShareModal.value = true;
+};
+
+const closeShareModal = () => {
+    showShareModal.value = false;
+};
+
+const handlePostShared = () => {
+    // Optional: Show success message or update UI
+    console.log('Post shared successfully');
+};
+
+const openImageViewer = (images: string[], startIndex: number = 0) => {
+    imageViewerImages.value = images;
+    imageViewerCurrentIndex.value = startIndex;
+    showImageViewer.value = true;
+};
+
+const closeImageViewer = () => {
+    showImageViewer.value = false;
+    imageViewerImages.value = [];
+    imageViewerCurrentIndex.value = 0;
 };
 
 const deleteRepost = async () => {
@@ -426,12 +457,13 @@ const cancelComment = () => {
 
                 <!-- Images for regular post -->
                 <div v-if="post.images && post.images.length > 0" class="mt-3 grid grid-cols-2 gap-2">
-                    <img 
+                    <img
                         v-for="(image, index) in post.images"
                         :key="index"
-                        :src="image" 
+                        :src="image"
                         :alt="`Image ${index + 1}`"
-                        class="max-w-full h-auto rounded-lg border border-gray-200"
+                        class="max-w-full h-auto rounded-lg border border-gray-200 cursor-pointer hover:opacity-90 transition-opacity"
+                        @click="openImageViewer(post.images, index)"
                     />
                 </div>
 
@@ -501,6 +533,7 @@ const cancelComment = () => {
 
             <!-- Share -->
             <button
+                @click="openShareModal"
                 class="group flex items-center space-x-2 transition-colors hover:text-green-500"
             >
                 <div
@@ -525,12 +558,28 @@ const cancelComment = () => {
     </div>
 
     <!-- Repost Modal -->
-    <RepostModal 
+    <RepostModal
         v-if="showRepostModal"
         :post="post"
         :target-post-id="post.type === 'repost' && post.post_id ? post.post_id : post.id"
         @close="closeRepostModal"
         @submitted="handleRepostSubmitted"
+    />
+
+    <!-- Share Modal -->
+    <ShareModal
+        :is-open="showShareModal"
+        :post="post"
+        @close="closeShareModal"
+        @shared="handlePostShared"
+    />
+
+    <!-- Image Viewer Modal -->
+    <ImageViewerModal
+        :is-open="showImageViewer"
+        :images="imageViewerImages"
+        :current-index="imageViewerCurrentIndex"
+        @close="closeImageViewer"
     />
 
     <!-- Comment Modal -->

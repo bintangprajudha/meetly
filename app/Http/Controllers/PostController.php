@@ -149,7 +149,7 @@ class PostController extends Controller
     {
         $validated = $request->validate([
             'content' => 'required|string|max:280',
-            'images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048', // Multiple images
+            'images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:10240', // Multiple images
             'images' => 'nullable|array|max:4', // Max 4 images
         ]);
 

@@ -4,9 +4,10 @@ import axios from 'axios';
 import { usePage, Link } from '@inertiajs/vue3';
 import AppSidebarLayout from '@/layouts/app/AppSidebarLayout.vue';
 import AppHeaderLayout from '@/layouts/app/AppHeaderLayout.vue';
+import ImageViewerModal from '@/components/ImageViewerModal.vue';
 
 interface User { id: number; name: string; avatar?: string | null }
-interface ChatMessage { id: number; sender_id: number; receiver_id: number; message: string; created_at: string }
+interface ChatMessage { id: number; sender_id: number; receiver_id: number; message: string; images?: string[]; created_at: string }
 
 // Page props
 const page = usePage();
@@ -21,6 +22,11 @@ const chatContainer = ref<HTMLElement | null>(null);
 // Sidebar chat
 const chats = ref<{ user: User; last_message: string | null }[]>([]);
 const loading = ref(true);
+
+// Image viewer modal
+const showImageViewer = ref(false);
+const imageViewerImages = ref<string[]>([]);
+const imageViewerCurrentIndex = ref(0);
 
 // Helpers
 const formatTime = (ts: string) => new Date(ts).toLocaleTimeString();
@@ -76,6 +82,19 @@ const fetchChats = async () => {
   }
 };
 
+// Image viewer functions
+const openImageViewer = (images: string[], startIndex: number = 0) => {
+  imageViewerImages.value = images;
+  imageViewerCurrentIndex.value = startIndex;
+  showImageViewer.value = true;
+};
+
+const closeImageViewer = () => {
+  showImageViewer.value = false;
+  imageViewerImages.value = [];
+  imageViewerCurrentIndex.value = 0;
+};
+
 // Lifecycle & Realtime
 onMounted(() => {
   fetchMessages();
@@ -96,24 +115,42 @@ onMounted(() => {
 <template>
   <AppSidebarLayout>
     <AppHeaderLayout>
-      <div class="h-screen flex justify-center overflow-hidden bg-gray-100">
-        <div class="flex w-full max-w-[1200px]">
+      <div class="h-screen flex justify-center overflow-hidden bg-gray-200">
+        <div class="flex w-full max-w-[1300px] border border-[#C9C9C9] bg-white">
 
           <!-- Sidebar Chat -->
-          <div class="w-80 border-r bg-white h-screen overflow-y-auto p-4 space-y-3">
-            <div class="font-semibold text-lg mb-3">Chat</div>
+          <div class="w-72 border-r border-[#C9C9C9] bg-white h-screen overflow-y-auto p-4 space-y-3">
+
+            <div class="font-semibold text-lg mb-3 text-black">Obrolan</div>
+
+            <!-- Search -->
+            <div class="relative">
+              <input
+                type="text"
+                class="w-full px-3 py-2 border border-[#C9C9C9] rounded-lg bg-white text-black text-sm"
+                placeholder="Cari..."
+              />
+            </div>
+
             <div v-if="loading" class="text-sm text-black">Memuat...</div>
+
             <div v-else>
               <div v-if="chats.length === 0" class="text-sm text-black">Belum ada percakapan</div>
-              <div v-for="chat in chats" :key="chat.user.id" class="mb-1 text-gray-600">
+
+              <div
+                v-for="chat in chats"
+                :key="chat.user.id"
+                class="mb-1 text-gray-600"
+              >
                 <Link
                   :href="`/chat/${chat.user.id}`"
                   class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-100 transition"
                 >
                   <img :src="chat.user.avatar ?? '/profile.png'" class="w-10 h-10 rounded-full object-cover" />
+
                   <div class="min-w-0">
-                    <div class="font-semibold truncate">{{ chat.user.name }}</div>
-                    <div class="text-sm text-gray-900 truncate">{{ chat.last_message ?? "Belum ada pesan" }}</div>
+                    <div class="font-semibold truncate text-black">{{ chat.user.name }}</div>
+                    <div class="text-xs text-gray-500 truncate">{{ chat.last_message ?? "Belum ada pesan" }}</div>
                   </div>
                 </Link>
               </div>
@@ -121,37 +158,58 @@ onMounted(() => {
           </div>
 
           <!-- Chat Panel -->
-          <div class="flex flex-col flex-1 max-w-[900px] bg-white border-l">
+          <div class="flex flex-col flex-1 bg-white">
 
             <!-- Header Chat -->
-            <div class="p-4 border-b font-semibold bg-white text-black flex items-center gap-2">
+            <div class="p-4 border-b border-[#C9C9C9] bg-white text-black flex items-center gap-2 font-semibold">
               <img :src="chatUser?.avatar ?? '/profile.png'" class="w-8 h-8 rounded-full object-cover" />
               <span>{{ chatUser?.name ?? "Pilih pengguna" }}</span>
             </div>
 
             <!-- Messages -->
-            <div ref="chatContainer" class="flex-1 overflow-y-auto p-5 space-y-3 bg-gray-50">
-              <div v-for="msg in messages" :key="msg.id"
-                class="max-w-[70%] px-4 py-2 rounded-2xl text-[15px] leading-relaxed shadow-sm"
+            <div
+              ref="chatContainer"
+              class="flex-1 overflow-y-auto p-5 space-y-4 bg-white"
+            >
+              <div
+                v-for="msg in messages"
+                :key="msg.id"
+                class="max-w-[60%] px-4 py-2 rounded-2xl text-[15px] leading-relaxed"
                 :class="msg.sender_id === authUser.id
-                  ? 'bg-blue-100 text-black ml-auto'
-                  : 'bg-gray-200 text-black'">
+                  ? 'bg-red-500 text-white ml-auto'
+                  : 'bg-gray-100 text-black'"
+              >
                 <div>{{ msg.message }}</div>
-                <div class="text-[10px] opacity-60 mt-1 text-right">{{ formatTime(msg.created_at) }}</div>
+
+                <!-- Display images if they exist -->
+                <div v-if="msg.images && msg.images.length > 0" class="mt-2 grid grid-cols-2 gap-1">
+                  <img
+                    v-for="(image, index) in msg.images"
+                    :key="index"
+                    :src="image"
+                    :alt="`Shared image ${index + 1}`"
+                    class="w-full h-20 object-cover rounded border border-gray-300 cursor-pointer hover:opacity-90 transition-opacity"
+                    @click="openImageViewer(msg.images, index)"
+                  />
+                </div>
+
+                <div class="text-[10px] opacity-70 mt-1 text-right">{{ formatTime(msg.created_at) }}</div>
               </div>
             </div>
 
             <!-- Input -->
-            <div class="p-4 border-t bg-white flex gap-3">
+            <div class="p-4 border-t border-[#C9C9C9] bg-white flex gap-3">
+
               <input
                 v-model="newMessage"
                 @keyup.enter="sendMessage"
-                class="flex-1 border border-gray-300 rounded-full px-4 py-2 focus:outline-none focus:border-blue-500 text-black"
+                class="flex-1 border border-[#C9C9C9] rounded-full px-4 py-2 focus:outline-none focus:border-red-500 text-black"
                 placeholder="Ketik pesan..."
               />
+
               <button
                 @click="sendMessage"
-                class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-full font-medium transition"
+                class="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-full font-medium transition"
               >
                 Kirim
               </button>
