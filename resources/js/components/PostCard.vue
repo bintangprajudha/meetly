@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import RepostModal from './RepostModal.vue';
+import CommentModal from './CommentModal.vue';
 
 const page = usePage();
 
@@ -48,6 +49,7 @@ const emit = defineEmits<{
 
 const imageError = ref(false);
 const comments = ref((props.post as any).comments ? [...(props.post as any).comments] : []);
+const showCommentModal = ref(false);
 const showCommentBox = ref(false);
 const commentInput = ref('');
 const posting = ref(false);
@@ -224,9 +226,36 @@ const handleImageError = () => {
     imageError.value = true;
 };
 
-const toggleCommentBox = () => {
-    showCommentBox.value = !showCommentBox.value;
-    commentError.value = null;
+const openCommentModal = () => {
+    showCommentModal.value = true;
+};
+
+const closeCommentModal = () => {
+    showCommentModal.value = false;
+};
+
+const handleCommented = async () => {
+    // Fetch the latest comment from the server and prepend it
+    try {
+        const targetId = props.post.type === 'repost' && props.post.post_id ? props.post.post_id : props.post.id;
+        const res = await fetch(`/posts/${targetId}/comments/latest`, {
+            method: 'GET',
+            credentials: 'include',
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+
+        if (res.ok) {
+            const data = await res.json();
+            if (data?.comment) {
+                comments.value.unshift(data.comment);
+            }
+        }
+    } catch (e) {
+        console.warn('Failed to fetch latest comment', e);
+    }
 };
 
 const postComment = async () => {
@@ -317,31 +346,6 @@ const cancelComment = () => {
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
                 </svg>
             </button>
-        </div>
-
-        <!-- Comment Box -->
-        <div v-if="showCommentBox" class="mt-3">
-            <textarea
-                v-model="commentInput"
-                rows="3"
-                class="w-full p-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-200 bg-white text-black"
-                placeholder="Write a comment..."
-            ></textarea>
-
-            <div class="flex items-center space-x-2 mt-2">
-                <button
-                    @click="postComment"
-                    :disabled="posting"
-                    class="bg-blue-600 text-white px-3 py-1 rounded-md hover:bg-blue-700 disabled:opacity-50"
-                >
-                    <span v-if="!posting">Post</span>
-                    <span v-else>Posting...</span>
-                </button>
-
-                <button @click="cancelComment" class="px-3 py-1 rounded-md border border-gray-200 hover:bg-gray-50 text-gray-700">Cancel</button>
-            </div>
-
-            <p v-if="commentError" class="text-sm text-red-500 mt-2">{{ commentError }}</p>
         </div>
 
         <!-- Post Content -->
@@ -454,8 +458,8 @@ const cancelComment = () => {
                 <span class="text-sm">{{ reposts || '' }}</span>
             </button>
 
-            <!-- Comment (opens comment box) -->
-            <button @click="toggleCommentBox" class="flex items-center space-x-2 hover:text-blue-500 transition-colors group">
+            <!-- Comment (opens comment modal) -->
+            <button @click="openCommentModal" class="flex items-center space-x-2 hover:text-blue-500 transition-colors group">
                 <div class="p-2 rounded-full group-hover:bg-blue-50 transition-colors">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4-.8L3 20l1.2-3.8A7.966 7.966 0 013 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
@@ -520,5 +524,14 @@ const cancelComment = () => {
         :target-post-id="post.type === 'repost' && post.post_id ? post.post_id : post.id"
         @close="closeRepostModal"
         @submitted="handleRepostSubmitted"
+    />
+
+    <!-- Comment Modal -->
+    <CommentModal 
+        :isOpen="showCommentModal" 
+        :postId="props.post.type === 'repost' && props.post.post_id ? props.post.post_id : props.post.id"
+        :user="props.currentUser"
+        @close="closeCommentModal"
+        @commented="handleCommented"
     />
 </template>
