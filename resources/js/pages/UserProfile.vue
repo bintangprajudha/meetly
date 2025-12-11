@@ -179,7 +179,7 @@ const unfollowUser = async () => {
 
                             <!-- Avatar -->
                             <div class="w-32 h-32 bg-white rounded-full border-4 border-white shadow-xl flex items-center justify-center text-3xl font-bold text-gray-700"
-                                :style="{ backgroundColor: '#FF3B30' }">
+                                :style="{ backgroundColor: '#F97316' }">
                                 {{ getInitials(profileUser.name) }}
                             </div>
 
