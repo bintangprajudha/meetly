@@ -89,11 +89,6 @@ const openImageViewer = (images: string[], startIndex: number = 0) => {
   showImageViewer.value = true;
 };
 
-const closeImageViewer = () => {
-  showImageViewer.value = false;
-  imageViewerImages.value = [];
-  imageViewerCurrentIndex.value = 0;
-};
 
 // Lifecycle & Realtime
 onMounted(() => {
@@ -218,6 +213,14 @@ onMounted(() => {
           </div>
         </div>
       </div>
+
+      <!-- Image Viewer Modal -->
+      <ImageViewerModal
+        :is-open="showImageViewer"
+        :images="imageViewerImages"
+        :current-index="imageViewerCurrentIndex"
+        @close="showImageViewer = false"
+      />
     </AppHeaderLayout>
   </AppSidebarLayout>
 </template>
