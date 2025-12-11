@@ -211,6 +211,14 @@ onMounted(() => {
           </div>
         </div>
       </div>
+
+      <!-- Image Viewer Modal -->
+      <ImageViewerModal
+        :is-open="showImageViewer"
+        :images="imageViewerImages"
+        :current-index="imageViewerCurrentIndex"
+        @close="showImageViewer = false"
+      />
     </AppHeaderLayout>
   </AppSidebarLayout>
 </template>
