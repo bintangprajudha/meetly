@@ -69,6 +69,19 @@ const handleDeletePost = async (postId: string | number) => {
     }
 };
 
+const handlePostCommented = (postId: number | string, comment: any) => {
+  // Find the post in local list and increment its comment count
+  const idx = posts.value.findIndex(p => String(p.id) === String(postId));
+  if (idx !== -1) {
+    // prefer replies_count if available, otherwise try comments_count
+    if ((posts.value[idx] as any).replies_count !== undefined) {
+      (posts.value[idx] as any).replies_count = ((posts.value[idx] as any).replies_count || 0) + 1;
+    } else if ((posts.value[idx] as any).comments_count !== undefined) {
+      (posts.value[idx] as any).comments_count = ((posts.value[idx] as any).comments_count || 0) + 1;
+    }
+  }
+};
+
 </script>
 
 <template>
@@ -86,6 +99,7 @@ const handleDeletePost = async (postId: string | number) => {
               :post="post"
               :current-user="props.user"
               @delete="handleDeletePost"
+              @commented="handlePostCommented"
             />
           </div>
 

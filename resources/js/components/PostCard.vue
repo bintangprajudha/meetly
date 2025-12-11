@@ -49,6 +49,10 @@ const emit = defineEmits<{
 
 const imageError = ref(false);
 const comments = ref((props.post as any).comments ? [...(props.post as any).comments] : []);
+const commentsCount = computed(() => {
+    const p = props.post as any;
+    return p.comments_count ?? p.replies_count ?? (comments.value ? comments.value.length : 0);
+});
 const showCommentModal = ref(false);
 const showCommentBox = ref(false);
 const commentInput = ref('');
@@ -226,6 +230,11 @@ const handleImageError = () => {
     imageError.value = true;
 };
 
+const viewPostDetail = () => {
+    const postId = props.post.type === 'repost' && props.post.post_id ? props.post.post_id : props.post.id;
+    router.visit(`/posts/${postId}`);
+};
+
 const openCommentModal = () => {
     showCommentModal.value = true;
 };
@@ -251,6 +260,11 @@ const handleCommented = async () => {
             const data = await res.json();
             if (data?.comment) {
                 comments.value.unshift(data.comment);
+                // keep server-provided post count in sync so parents/computed see change
+                (props.post as any).comments_count = ((props.post as any).comments_count || 0) + 1;
+                // notify parent components (PostDetail / Dashboard)
+                const targetId = props.post.type === 'repost' && props.post.post_id ? props.post.post_id : props.post.id;
+                emit('commented', targetId, data.comment);
             }
         }
     } catch (e) {
@@ -294,6 +308,11 @@ const postComment = async () => {
                     const data = await res.json();
                     if (data?.comment) {
                         comments.value.unshift(data.comment);
+                        // keep server-provided post count in sync so parents/computed see change
+                        (props.post as any).comments_count = ((props.post as any).comments_count || 0) + 1;
+                        // notify parent components (PostDetail / Dashboard)
+                        const targetId = props.post.type === 'repost' && props.post.post_id ? props.post.post_id : props.post.id;
+                        emit('commented', targetId, data.comment);
                     }
                 }
             } catch (e) {
@@ -348,8 +367,8 @@ const cancelComment = () => {
             </button>
         </div>
 
-        <!-- Post Content -->
-        <div class="mb-3">
+        <!-- Post Content (clickable to view detail) -->
+        <div class="mb-3 cursor-pointer hover:opacity-80 transition-opacity" @click="viewPostDetail">
             <!-- Repost indicator - tampilkan jika ini adalah repost -->
             <div v-if="post.type === 'repost'" class="mb-3 flex items-center space-x-2 text-green-600 text-sm">
                 <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
@@ -427,19 +446,7 @@ const cancelComment = () => {
                 </div>
             </div>
             
-            <!-- Comments preview -->
-            <div v-if="comments && comments.length" class="mt-3 space-y-3">
-                <div v-for="comment in comments" :key="comment.id" class="flex items-start space-x-3">
-                    <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-medium text-gray-700">{{ (comment.user?.name || 'U').charAt(0).toUpperCase() }}</div>
-                    <div class="flex-1">
-                        <div class="text-sm">
-                            <span class="font-semibold text-gray-800 mr-2">{{ comment.user?.name || 'Unknown' }}</span>
-                            <span class="text-gray-500 text-xs">· {{ formatDate(comment.created_at) }}</span>
-                        </div>
-                        <div class="text-gray-800 text-sm">{{ comment.content }}</div>
-                    </div>
-                </div>
-            </div>
+            <!-- Comments are hidden in card view, shown on detail page -->
         </div>
 
         <!-- Action Buttons -->
@@ -465,7 +472,7 @@ const cancelComment = () => {
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4-.8L3 20l1.2-3.8A7.966 7.966 0 013 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
                     </svg>
                 </div>
-                <span class="text-sm">{{ comments.length || '' }}</span>
+                <span class="text-sm">{{ commentsCount || '' }}</span>
             </button>
 
             <!-- Like -->

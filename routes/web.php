@@ -41,6 +41,8 @@ Route::middleware(['web', 'auth'])->group(function () {
                 $post->liked = $post->likes()->where('user_id', $userId)->exists();
                 $post->bookmarked = $post->bookmarks()->where('user_id', $userId)->exists();
                 $post->replies_count = $post->comments_count;
+                // Load empty comments array so count shows
+                $post->comments = [];
                 return $post;
             });
 
