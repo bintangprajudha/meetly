@@ -15,7 +15,6 @@ const props = defineProps<{
         likes_count: number;
         bookmarks_count: number;
         reposts_count?: number;
-        replies_count: number;
         created_at: string;
         liked?: boolean;
         bookmarked?: boolean;
@@ -48,7 +47,6 @@ const emit = defineEmits<{
 }>();
 
 const imageError = ref(false);
-const repliesCount = ref(props.post.replies_count || 0);
 const comments = ref((props.post as any).comments ? [...(props.post as any).comments] : []);
 const showCommentBox = ref(false);
 const commentInput = ref('');
