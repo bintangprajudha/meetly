@@ -4,9 +4,10 @@ import axios from 'axios';
 import { usePage, Link } from '@inertiajs/vue3';
 import AppSidebarLayout from '@/layouts/app/AppSidebarLayout.vue';
 import AppHeaderLayout from '@/layouts/app/AppHeaderLayout.vue';
+import ImageViewerModal from '@/components/ImageViewerModal.vue';
 
 interface User { id: number; name: string; avatar?: string | null }
-interface ChatMessage { id: number; sender_id: number; receiver_id: number; message: string; created_at: string }
+interface ChatMessage { id: number; sender_id: number; receiver_id: number; message: string; images?: string[]; created_at: string }
 
 // Page props
 const page = usePage();
@@ -21,6 +22,11 @@ const chatContainer = ref<HTMLElement | null>(null);
 // Sidebar chat
 const chats = ref<{ user: User; last_message: string | null }[]>([]);
 const loading = ref(true);
+
+// Image viewer modal
+const showImageViewer = ref(false);
+const imageViewerImages = ref<string[]>([]);
+const imageViewerCurrentIndex = ref(0);
 
 // Helpers
 const formatTime = (ts: string) => new Date(ts).toLocaleTimeString();
@@ -74,6 +80,19 @@ const fetchChats = async () => {
   } finally {
     loading.value = false;
   }
+};
+
+// Image viewer functions
+const openImageViewer = (images: string[], startIndex: number = 0) => {
+  imageViewerImages.value = images;
+  imageViewerCurrentIndex.value = startIndex;
+  showImageViewer.value = true;
+};
+
+const closeImageViewer = () => {
+  showImageViewer.value = false;
+  imageViewerImages.value = [];
+  imageViewerCurrentIndex.value = 0;
 };
 
 // Lifecycle & Realtime
@@ -161,6 +180,19 @@ onMounted(() => {
                   : 'bg-gray-100 text-black'"
               >
                 <div>{{ msg.message }}</div>
+
+                <!-- Display images if they exist -->
+                <div v-if="msg.images && msg.images.length > 0" class="mt-2 grid grid-cols-2 gap-1">
+                  <img
+                    v-for="(image, index) in msg.images"
+                    :key="index"
+                    :src="image"
+                    :alt="`Shared image ${index + 1}`"
+                    class="w-full h-20 object-cover rounded border border-gray-300 cursor-pointer hover:opacity-90 transition-opacity"
+                    @click="openImageViewer(msg.images, index)"
+                  />
+                </div>
+
                 <div class="text-[10px] opacity-70 mt-1 text-right">{{ formatTime(msg.created_at) }}</div>
               </div>
             </div>
