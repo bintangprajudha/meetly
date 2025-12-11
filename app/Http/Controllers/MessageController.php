@@ -9,8 +9,10 @@ use App\Events\NewMessage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
+
 class MessageController extends Controller
-{
+{   
+    // raka
     public function index(User $user)
     {
         return Inertia::render('Messages/Chat', [

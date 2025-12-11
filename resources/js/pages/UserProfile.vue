@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { Head, router, usePage } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import PostModal from '@/components/PostModal.vue';
 import PostCard from '@/components/PostCard.vue';
@@ -8,15 +8,26 @@ import AppHeaderLayout from '@/layouts/app/AppHeaderLayout.vue';
 
 // Define types
 interface Post {
-    id: number;
+    id: number | string;
+    type?: string;
     content: string;
     image_url?: string;
+    images?: string[];
     likes_count: number;
     bookmarks_count: number;
+    reposts_count?: number;
     replies_count: number;
     created_at: string;
     liked?: boolean;
     bookmarked?: boolean;
+    reposted?: boolean;
+    repost_caption?: string;
+    repost_images?: string[];
+    original_post_user?: {
+        id: number;
+        name: string;
+        email: string;
+    };
     user: {
         id: number;
         name: string;
@@ -31,22 +42,34 @@ const props = defineProps<{
         name: string;
         email: string;
         created_at?: string;
+        followers_count?: number;
+        following_count?: number;
     };
     profileUser?: {
         id: number;
         name: string;
         email: string;
         created_at?: string;
+        followers_count?: number;
+        following_count?: number;
     };
     posts: Post[];
     isFollowing: boolean;
-    likedPosts?: Post[];  // Tambahkan ini
+    likedPosts?: Post[];
     replies?: Post[];
+    reposts?: Post[];
 }>();
 
 const isFollowing = ref(props.isFollowing);
 // Normalize profile user: some controllers send `profileUser`, others `user`.
-const profileUser = (props.user ?? (props as any).profileUser) as { id: number; name: string; email?: string; created_at?: string };
+const profileUser = (props.user ?? (props as any).profileUser) as { 
+    id: number; 
+    name: string; 
+    email?: string; 
+    created_at?: string;
+    followers_count?: number;
+    following_count?: number;
+};
 
 // Authenticated user from Inertia page props
 const page = usePage();
@@ -67,7 +90,7 @@ const openPostModal = () => {
 };
 
 // Handle post deletion
-const handleDeletePost = async (postId: number) => {
+const handleDeletePost = async (postId: number | string) => {
     try {
         await router.delete(`/posts/${postId}`, {
             preserveState: false,
@@ -225,7 +248,7 @@ const unfollowUser = async () => {
                                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                             ]"
                         >
-                            Replies
+                            Reposts
                         </button>
 
                         <!-- Likes Tab -->
@@ -256,6 +279,7 @@ const unfollowUser = async () => {
                                 @delete="handleDeletePost"
                                 class="border-none"
                             />
+
                         </div>
 
                         <!-- Empty State for Posts -->
@@ -289,9 +313,22 @@ const unfollowUser = async () => {
                                 <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path>
                                 </svg>
+                            <!-- Stats -->
+                            <!-- <div class="flex items-center space-x-6 mt-3">
+                                <div class="text-center flex items-center gap-1">
+                                    <p class="font-bold text-gray-900">{{ profileUser.following_count }}</p>
+                                    <p class="text-gray-600 text-sm">Following</p>
+                                </div>
+                                <div class="text-center flex items-center gap-1">
+                                    <p class="font-bold text-gray-900">{{ profileUser.followers_count }}</p>
+                                    <p class="text-gray-600 text-sm">Followers</p>
+
+                                </div>
+                            </div> -->
+                            <div>
+                                <h3 class="text-lg font-medium text-gray-900 mb-2">No replies yet</h3>
+                                <p class="text-gray-500">{{ profileUser.name }} hasn't replied to any posts.</p>
                             </div>
-                            <h3 class="text-lg font-medium text-gray-900 mb-2">No replies yet</h3>
-                            <p class="text-gray-500">{{ profileUser.name }} hasn't replied to any posts.</p>
                         </div>
                     </div>
 
@@ -321,6 +358,7 @@ const unfollowUser = async () => {
                         </div>
                     </div>
                 </div>
+            </div>
             </div>
         </main>
 

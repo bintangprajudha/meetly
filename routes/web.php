@@ -7,6 +7,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\FollowController;
+use App\Http\Controllers\RepostController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\MessageController;
 
@@ -28,10 +29,20 @@ Route::middleware(['guest'])->group(function () {
 
 // Authenticated routes (only accessible when logged in)
 Route::middleware(['web', 'auth'])->group(function () {
+    Route::get('/dashboard', [PostController::class, 'index'])->name('dashboard');
     Route::get('/dashboard', function () {
-        $posts = \App\Models\Post::with(['user', 'comments.user'])
+        $userId = Auth::id();
+        
+        $posts = \App\Models\Post::with('user')
+            ->withCount(['likes', 'bookmarks', 'comments'])
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->get()
+            ->map(function ($post) use ($userId) {
+                $post->liked = $post->likes()->where('user_id', $userId)->exists();
+                $post->bookmarked = $post->bookmarks()->where('user_id', $userId)->exists();
+                $post->replies_count = $post->comments_count;
+                return $post;
+            });
 
         return Inertia::render('Dashboard', [
             'user' => Auth::user(),
@@ -58,6 +69,11 @@ Route::middleware(['web', 'auth'])->group(function () {
     // Toggle bookmark
     Route::post('/posts/{post}/bookmark', [PostController::class, 'toggleBookmark'])->name('posts.bookmark');
 
+    // Repost routes
+    Route::post('/posts/{post}/repost', [RepostController::class, 'store'])->name('posts.repost');
+    Route::delete('/reposts/{repost}', [RepostController::class, 'destroy'])->name('reposts.destroy');
+    Route::get('/posts/{post}/reposts', [RepostController::class, 'getReposts'])->name('posts.reposts');
+    Route::get('/posts/{post}/has-reposted', [RepostController::class, 'hasUserReposted'])->name('posts.has-reposted');
     Route::get('/chat/{user}', [MessageController::class, 'index'])->name('messages.index');
 
     // "API" untuk frontend (session auth)
@@ -74,4 +90,3 @@ Route::get('/users/{user}/following', [FollowController::class, 'following'])->n
 Route::get('/{username}', [UserController::class, 'show'])
     ->name('user.profile')
     ->where('username', '[A-Za-z0-9_]+'); // Only allow alphanumeric and underscore
-
