@@ -69,7 +69,7 @@ const handleDeletePost = async (postId: string | number) => {
     }
 };
 
-const handlePostCommented = (postId: number | string, comment: any) => {
+const handlePostCommented = (postId: number | string) => {
   // Find the post in local list and increment its comment count
   const idx = posts.value.findIndex(p => String(p.id) === String(postId));
   if (idx !== -1) {

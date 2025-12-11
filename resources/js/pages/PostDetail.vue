@@ -1,12 +1,10 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import { Link, usePage, router } from '@inertiajs/vue3';
+import { ref } from 'vue';
+import { Link, router } from '@inertiajs/vue3';
 import AppHeaderLayout from '@/layouts/app/AppHeaderLayout.vue';
 import AppSidebarLayout from '@/layouts/app/AppSidebarLayout.vue';
 import PostCard from '@/components/PostCard.vue';
 import CommentModal from '@/components/CommentModal.vue';
-
-const page = usePage();
 
 const props = defineProps<{
     post: {

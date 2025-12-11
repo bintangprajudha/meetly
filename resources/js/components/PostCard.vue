@@ -56,10 +56,6 @@ const commentsCount = computed(() => {
     return p.comments_count ?? p.replies_count ?? (comments.value ? comments.value.length : 0);
 });
 const showCommentModal = ref(false);
-const showCommentBox = ref(false);
-const commentInput = ref('');
-const posting = ref(false);
-const commentError = ref<string | null>(null);
 
 // local reactive UI state for likes - initialized once, managed locally
 const liked = ref<boolean>(props.post.liked ?? false);
@@ -303,69 +299,7 @@ const handleCommented = async () => {
     }
 };
 
-const postComment = async () => {
-    commentError.value = null;
-    const content = (commentInput.value || '').trim();
-    if (!content) {
-        commentError.value = 'Comment cannot be empty';
-        return;
-    }
 
-    posting.value = true;
-
-    const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-    // Use post_id for reposts (original post), otherwise use post.id
-    const targetId = props.post.type === 'repost' && props.post.post_id ? props.post.post_id : props.post.id;
-
-    router.post(`/posts/${targetId}/comments`, { content, _token: token }, {
-        preserveState: true,
-        onSuccess: async () => {
-            // Clear input
-            commentInput.value = '';
-            showCommentBox.value = false;
-
-            // Fetch the latest comment from the server and prepend it so it appears immediately
-            try {
-                const res = await fetch(`/posts/${targetId}/comments/latest`, {
-                    method: 'GET',
-                    credentials: 'include',
-                    headers: {
-                        'Accept': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                });
-
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data?.comment) {
-                        comments.value.unshift(data.comment);
-                        // keep server-provided post count in sync so parents/computed see change
-                        (props.post as any).comments_count = ((props.post as any).comments_count || 0) + 1;
-                        // notify parent components (PostDetail / Dashboard)
-                        const targetId = props.post.type === 'repost' && props.post.post_id ? props.post.post_id : props.post.id;
-                        emit('commented', targetId, data.comment);
-                    }
-                }
-            } catch (e) {
-                // ignore fetch error but leave comment UI consistent
-                console.warn('Failed to fetch latest comment', e);
-            } finally {
-                posting.value = false;
-            }
-        },
-        onError: (errors) => {
-            commentError.value = errors?.message || 'Failed to post comment';
-            posting.value = false;
-        }
-    });
-};
-
-const cancelComment = () => {
-    // simply close the box and clear errors (Inertia post is not abortable here)
-    showCommentBox.value = false;
-    commentError.value = null;
-    posting.value = false;
-};
 </script>
 
 <template>
