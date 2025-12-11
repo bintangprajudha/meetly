@@ -8,15 +8,26 @@ import AppHeaderLayout from '@/layouts/app/AppHeaderLayout.vue';
 
 // Define types
 interface Post {
-    id: number;
+    id: number | string;
+    type?: string;
     content: string;
     image_url?: string;
+    images?: string[];
     likes_count: number;
     bookmarks_count: number;
+    reposts_count?: number;
     replies_count: number;
     created_at: string;
     liked?: boolean;
     bookmarked?: boolean;
+    reposted?: boolean;
+    repost_caption?: string;
+    repost_images?: string[];
+    original_post_user?: {
+        id: number;
+        name: string;
+        email: string;
+    };
     user: {
         id: number;
         name: string;
@@ -47,7 +58,7 @@ const openPostModal = () => {
     showPostModal.value = true;
 };
 
-const handleDeletePost = async (postId: number) => {
+const handleDeletePost = async (postId: string | number) => {
     try {
         await router.delete(`/posts/${postId}`, {
             preserveState: false,
