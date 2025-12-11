@@ -68,6 +68,7 @@ Route::middleware(['web', 'auth'])->group(function () {
     Route::post('/posts/{post}/like', [PostController::class, 'toggleLike'])->name('posts.like');
     // Toggle bookmark
     Route::post('/posts/{post}/bookmark', [PostController::class, 'toggleBookmark'])->name('posts.bookmark');
+    Route::get('/bookmarks', [PostController::class, 'bookmarks'])->name('bookmarks.index');
 
     // Repost routes
     Route::post('/posts/{post}/repost', [RepostController::class, 'store'])->name('posts.repost');
