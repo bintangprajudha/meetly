@@ -97,7 +97,7 @@ const handleDeletePost = async (postId: string | number) => {
             </div>
             <h3 class="text-lg font-medium text-gray-900 mb-2">No posts yet</h3>
             <p class="text-gray-500 mb-4">Be the first to share something with the community!</p>
-            <button @click="openPostModal" class="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors">Create your first post</button>
+            <button @click="openPostModal" class="px-6 py-3 bg-[#D84040] hover:bg-[#C73636] text-white rounded-lg font-medium transition-colors">Create your first post</button>
           </div>
         </div>
       </main>
