@@ -4,7 +4,6 @@ import axios from 'axios';
 import { usePage, Link } from '@inertiajs/vue3';
 import AppSidebarLayout from '@/layouts/app/AppSidebarLayout.vue';
 import AppHeaderLayout from '@/layouts/app/AppHeaderLayout.vue';
-import ImageViewerModal from '@/components/ImageViewerModal.vue';
 
 interface User { id: number; name: string; avatar?: string | null }
 interface ChatMessage { id: number; sender_id: number; receiver_id: number; message: string; images?: string[]; created_at: string }
@@ -88,7 +87,6 @@ const openImageViewer = (images: string[], startIndex: number = 0) => {
   imageViewerCurrentIndex.value = startIndex;
   showImageViewer.value = true;
 };
-
 
 // Lifecycle & Realtime
 onMounted(() => {

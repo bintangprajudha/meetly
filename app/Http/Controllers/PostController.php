@@ -181,8 +181,17 @@ class PostController extends Controller
 
     public function show(Post $post)
     {
+        $post->loadCount('comments');
+        // Load the post user and comments (with their user), ordering comments newest-first
+        $post->load([
+            'user',
+            'comments' => function ($query) {
+                $query->with('user')->orderBy('created_at', 'desc');
+            },
+        ]);
+        
         return Inertia::render('PostDetail', [
-            'post' => $post->load('user'),
+            'post' => $post,
             'user' => Auth::user(),
         ]);
     }
