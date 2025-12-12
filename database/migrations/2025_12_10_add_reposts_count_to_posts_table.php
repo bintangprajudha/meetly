@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('posts', function (Blueprint $table) {
-            $table->integer('reposts_count')->default(0)->after('bookmarks_count');
+            $table->integer('reposts_count')->default(0);   
         });
     }
 

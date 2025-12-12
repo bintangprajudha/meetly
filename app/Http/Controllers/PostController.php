@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\PostControllerStoreRequest;
 use App\Models\Post;
 use App\Models\Repost;
 use Illuminate\Http\Request;
@@ -145,14 +146,8 @@ class PostController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(PostControllerStoreRequest $request)
     {
-        $validated = $request->validate([
-            'content' => 'required|string|max:280',
-            'images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048', // Multiple images
-            'images' => 'nullable|array|max:4', // Max 4 images
-        ]);
-
         $imagePaths = [];
 
         // Handle multiple image uploads
@@ -165,14 +160,14 @@ class PostController extends Controller
 
         $post = Post::create([
             'user_id' => Auth::id(),
-            'content' => $validated['content'],
+            'content' => $request->content,
             'images' => !empty($imagePaths) ? $imagePaths : null,
         ]);
 
         Log::info('Post created successfully', [
             'post_id' => $post->id,
             'user_id' => Auth::id(),
-            'content_length' => strlen((string) ($validated['content'] ?? '')),
+            'content_length' => strlen((string) ($request->content ?? '')),
             'images_count' => count($imagePaths),
         ]);
 

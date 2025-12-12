@@ -103,8 +103,11 @@ const submitPost = async () => {
                 emit('close');
             },
             onError: (errors) => {
-                console.error('Error posting:', errors);
-                alert('Failed to create post. Please try again.');
+                console.error('Error posting:', errors.content);
+                alert(
+                    errors.content ||
+                        'An error occurred while submitting your post.'
+                );
             },
         });
     } catch (error) {
