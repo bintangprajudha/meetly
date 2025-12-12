@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Auth;
 class MessageController extends Controller
 {   
     // raka
+    // komen
     public function index(User $user)
     {
         return Inertia::render('Messages/Chat', [
