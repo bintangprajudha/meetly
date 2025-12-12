@@ -11,6 +11,11 @@ use Inertia\Inertia;
 
 class UserController extends Controller
 {
+    public function apiIndex()
+    {
+        return User::select('id', 'name', 'avatar')->get();
+    }
+
     public function show($username)
     {
         // Find user by username

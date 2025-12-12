@@ -43,9 +43,9 @@ const handleImageSelect = (event: Event) => {
     }
 
     for (const file of files) {
-        // Validate file size (2MB max)
-        if (file.size > 2 * 1024 * 1024) {
-            alert(`${file.name} size must be less than 2MB`);
+        // Validate file size (10MB max)
+        if (file.size > 10 * 1024 * 1024) {
+            alert(`${file.name} size must be less than 10MB`);
             continue;
         }
 

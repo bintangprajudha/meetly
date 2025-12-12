@@ -148,6 +148,12 @@ class PostController extends Controller
 
     public function store(PostControllerStoreRequest $request)
     {
+        $validated = $request->validate([
+            'content' => 'required|string|max:280',
+            'images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:10240', // Multiple images
+            'images' => 'nullable|array|max:4', // Max 4 images
+        ]);
+
         $imagePaths = [];
 
         // Handle multiple image uploads
@@ -176,8 +182,17 @@ class PostController extends Controller
 
     public function show(Post $post)
     {
+        $post->loadCount('comments');
+        // Load the post user and comments (with their user), ordering comments newest-first
+        $post->load([
+            'user',
+            'comments' => function ($query) {
+                $query->with('user')->orderBy('created_at', 'desc');
+            },
+        ]);
+        
         return Inertia::render('PostDetail', [
-            'post' => $post->load('user'),
+            'post' => $post,
             'user' => Auth::user(),
         ]);
     }

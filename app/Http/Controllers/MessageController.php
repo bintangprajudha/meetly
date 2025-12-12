@@ -82,4 +82,62 @@ class MessageController extends Controller
 
         return $result;
     }
+
+    public function sharePost(Request $request)
+    {
+        try {
+            $request->validate([
+                'post_id' => 'required|exists:posts,id',
+                'user_ids' => 'required|array|min:1',
+                'user_ids.*' => 'exists:users,id',
+            ]);
+
+            $post = \App\Models\Post::findOrFail($request->post_id);
+            $senderId = Auth::id();
+
+        $messages = [];
+        $sharedCount = 0;
+
+        foreach ($request->user_ids as $userId) {
+            // Skip if trying to share with self
+            if ($userId == $senderId) continue;
+
+            // Build message content with post details
+            $messageContent = "Shared a post: \"{$post->content}\"";
+            if ($post->images && count($post->images) > 0) {
+                $messageContent .= "\n\n[Images: " . count($post->images) . " attached]";
+            }
+
+            $message = Message::create([
+                'sender_id' => $senderId,
+                'receiver_id' => $userId,
+                'message' => $messageContent,
+                'images' => $post->images, // Include images from the post
+            ]);
+
+            $messages[] = $message;
+            $sharedCount++;
+
+            // Broadcast the message
+            broadcast(new NewMessage($message))->toOthers();
+        }
+
+        $message = $sharedCount > 0
+            ? "Post shared successfully with {$sharedCount} user" . ($sharedCount > 1 ? 's' : '') . "!"
+            : "No posts were shared.";
+
+            return response()->json([
+                'success' => $sharedCount > 0,
+                'message' => $message,
+                'shared_count' => $sharedCount,
+                'messages' => $messages,
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Share post failed: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to share post: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
 }

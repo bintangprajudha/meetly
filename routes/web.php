@@ -41,6 +41,8 @@ Route::middleware(['web', 'auth'])->group(function () {
                 $post->liked = $post->likes()->where('user_id', $userId)->exists();
                 $post->bookmarked = $post->bookmarks()->where('user_id', $userId)->exists();
                 $post->replies_count = $post->comments_count;
+                // Load empty comments array so count shows
+                $post->comments = [];
                 return $post;
             });
 
@@ -68,6 +70,7 @@ Route::middleware(['web', 'auth'])->group(function () {
     Route::post('/posts/{post}/like', [PostController::class, 'toggleLike'])->name('posts.like');
     // Toggle bookmark
     Route::post('/posts/{post}/bookmark', [PostController::class, 'toggleBookmark'])->name('posts.bookmark');
+    Route::get('/bookmarks', [PostController::class, 'bookmarks'])->name('bookmarks.index');
 
     // Repost routes
     Route::post('/posts/{post}/repost', [RepostController::class, 'store'])->name('posts.repost');
@@ -80,6 +83,8 @@ Route::middleware(['web', 'auth'])->group(function () {
     Route::get('/api/messages', [MessageController::class, 'list'])->name('messages.list');
     Route::get('/api/messages/{user}', [MessageController::class, 'fetch'])->name('messages.fetch');
     Route::post('/api/messages', [MessageController::class, 'send'])->name('messages.send');
+    Route::post('/api/posts/share', [MessageController::class, 'sharePost'])->name('posts.share');
+    Route::get('/api/users', [UserController::class, 'apiIndex'])->name('users.api.index');
 
 });
 
