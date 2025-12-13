@@ -77,7 +77,7 @@ const handleDeletePost = async (postId: number) => {
             </div>
             <h3 class="text-lg font-medium text-gray-900 mb-2">No bookmarked posts yet</h3>
             <p class="text-gray-500 mb-4">Posts you bookmark will appear here.</p>
-            <a href="/dashboard" class="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors">Browse Posts</a>
+            <a href="/dashboard" class="px-6 py-3 bg-[#D84040] hover:bg-[#C73636] text-white rounded-lg font-medium transition-colors">Browse Posts</a>
           </div>
         </div>
       </main>

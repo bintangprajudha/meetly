@@ -170,7 +170,7 @@ const unfollowUser = async () => {
                 <div class="bg-white rounded-xl shadow border border-[#C9C9C9] overflow-hidden mb-8">
 
                     <!-- Banner -->
-                    <div class="h-44 w-full bg-gradient-to-r from-blue-400 to-blue-600 relative"></div>
+                    <div class="h-44 w-full bg-gradient-to-r from-gray-400 to-gray-510 relative"></div>
 
                     <!-- Profile Section -->
                     <div class="px-6 py-6 -mt-20 relative">
@@ -186,8 +186,8 @@ const unfollowUser = async () => {
                             <!-- User Information -->
                             <div class="pt-20 ml-3">
                                 <h1 class="text-3xl font-bold text-gray-900">{{ profileUser.name }}</h1>
-                                <p class="text-gray-500 -mt-1">@{{ profileUser.name }}</p>
-                                <p class="text-gray-500 mt-1 text-sm">{{ profileUser.email }}</p>
+                                <p class="text-gray-500 mt-1">@{{ profileUser.name }}</p>
+                                 <p class="text-gray-500 mt-2">Joined on December 2025</p>
 
                                 <!-- Stats -->
                                 <div class="flex items-center space-x-8 mt-4">

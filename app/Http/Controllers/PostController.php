@@ -2,201 +2,129 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\PostControllerStoreRequest;
 use App\Models\Post;
 use App\Models\Repost;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
+use Illuminate\Http\Request;
+use App\Http\Requests\PostController\StoreRequest;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 
+/**
+ * Class PostController
+ *
+ * Controller responsible for:
+ * - Fetching main feed (posts + reposts)
+ * - Storing posts
+ * - Toggling likes & bookmarks
+ * - Showing post detail
+ * - Listing liked & bookmarked posts
+ *
+ * Heavy logic (feed transform, toggle logic) moved into private helpers
+ * to keep controller clean and readable.
+ */
 class PostController extends Controller
 {
+    /**
+     * Display full feed (posts + reposts combined by date).
+     */
     public function index()
     {
         $userId = Auth::id();
 
-        // Get all posts
-        $posts = Post::with('user')
-            ->withCount('likes')
-            ->withCount('bookmarks')
-            ->withCount('reposts')
-            ->orderBy('created_at', 'desc')
-            ->get()
-            ->map(function ($post) use ($userId) {
-                $post->liked = $userId ? $post->likes()->where('user_id', $userId)->exists() : false;
-                $post->bookmarked = $userId ? $post->bookmarks()->where('user_id', $userId)->exists() : false;
-                $post->reposted = $userId ? $post->reposts()->where('user_id', $userId)->exists() : false;
-                $post->likes_count = $post->likes_count ?? $post->likes()->count();
-                $post->bookmarks_count = $post->bookmarks_count ?? $post->bookmarks()->count();
-                $post->reposts_count = $post->reposts_count ?? $post->reposts()->count();
-                $post->type = 'post';
-                return $post;
-            });
+        $posts   = $this->getFormattedPosts($userId);
+        $reposts = $this->getFormattedReposts($userId);
 
-        // Get all reposts and transform them into post-like objects for the feed
-        $reposts = Repost::with(['user', 'post' => function ($query) {
-            $query->with('user')->withCount(['likes', 'bookmarks', 'reposts']);
-        }])
-        ->orderBy('created_at', 'desc')
-        ->get()
-        ->map(function ($repost) use ($userId) {
-            $originalPost = $repost->post;
-            
-            return (object) [
-                'id' => 'repost_' . $repost->id,
-                'type' => 'repost',
-                'repost_id' => $repost->id,
-                'user_id' => $repost->user_id,
-                'post_id' => $originalPost->id,
-                'user' => [
-                    'id' => $repost->user->id,
-                    'name' => $repost->user->name,
-                    'email' => $repost->user->email,
-                ],
-                'content' => $originalPost->content,
-                'images' => $originalPost->images,
-                'repost_caption' => $repost->caption,
-                'repost_images' => $repost->images,
-                'created_at' => $repost->created_at,
-                'original_post_user' => [
-                    'id' => $originalPost->user->id,
-                    'name' => $originalPost->user->name,
-                    'email' => $originalPost->user->email,
-                ],
-                'likes_count' => $originalPost->likes_count ?? $originalPost->likes()->count(),
-                'bookmarks_count' => $originalPost->bookmarks_count ?? $originalPost->bookmarks()->count(),
-                'reposts_count' => $originalPost->reposts_count ?? $originalPost->reposts()->count(),
-                'replies_count' => $originalPost->comments()->count(),
-                'liked' => $userId ? $originalPost->likes()->where('user_id', $userId)->exists() : false,
-                'bookmarked' => $userId ? $originalPost->bookmarks()->where('user_id', $userId)->exists() : false,
-                'reposted' => $userId ? $originalPost->reposts()->where('user_id', $userId)->exists() : false,
-            ];
-        });
-
-        // Merge posts and reposts, then sort by created_at descending
-        $allFeed = collect($posts)->merge($reposts)
-            ->sortByDesc(function ($item) {
-                return strtotime($item->created_at);
-            })
+        $feed = $posts->merge($reposts)
+            ->sortByDesc(fn ($item) => strtotime($item->created_at))
             ->values();
 
         return Inertia::render('Dashboard', [
-            'user' => Auth::user(),
-            'posts' => $allFeed,
+            'user'  => Auth::user(),
+            'posts' => $feed,
         ]);
     }
 
-    // Toggle like for current user — returns JSON with updated counts and status
+    /**
+     * Toggle like for a post.
+     */
     public function toggleLike(Post $post)
     {
         $userId = Auth::id();
-        if (! $userId) {
-            return response()->json(['message' => 'Unauthorized'], 401);
-        }
+        $this->ensureAuthenticated($userId);
 
-        Log::info('toggleLike called', ['post_id' => $post->id, 'user_id' => $userId]);
+        Log::info('toggleLike triggered', compact('userId') + ['post_id' => $post->id]);
 
-        $exists = $post->likes()->where('user_id', $userId)->exists();
-
-        if ($exists) {
-            $post->likes()->detach($userId);
-            $liked = false;
-        } else {
-            $post->likes()->attach($userId);
-            $liked = true;
-        }
-
-        $likesCount = $post->likes()->count();
-        $post->likes_count = $likesCount;
-        $post->saveQuietly();
+        $liked = $this->toggleRelation($post->likes(), $userId);
 
         return response()->json([
-            'liked' => $liked,
-            'likes_count' => $likesCount,
+            'liked'       => $liked,
+            'likes_count' => $post->likes()->count(),
         ]);
     }
 
-    // Toggle bookmark for current user — returns JSON with updated status
+    /**
+     * Toggle bookmark for a post.
+     */
     public function toggleBookmark(Post $post)
     {
         $userId = Auth::id();
-        if (! $userId) {
-            return response()->json(['message' => 'Unauthorized'], 401);
-        }
+        $this->ensureAuthenticated($userId);
 
-        Log::info('toggleBookmark called', ['post_id' => $post->id, 'user_id' => $userId]);
+        Log::info('toggleBookmark triggered', compact('userId') + ['post_id' => $post->id]);
 
-        $exists = $post->bookmarks()->where('user_id', $userId)->exists();
-
-        if ($exists) {
-            $post->bookmarks()->detach($userId);
-            $bookmarked = false;
-        } else {
-            $post->bookmarks()->attach($userId);
-            $bookmarked = true;
-        }
-
-        $bookmarksCount = $post->bookmarks()->count();
+        $bookmarked = $this->toggleRelation($post->bookmarks(), $userId);
 
         return response()->json([
-            'bookmarked' => $bookmarked,
-            'bookmarks_count' => $bookmarksCount,
+            'bookmarked'       => $bookmarked,
+            'bookmarks_count'  => $post->bookmarks()->count(),
         ]);
     }
 
-    public function store(PostControllerStoreRequest $request)
+    /**
+     * Store a new post with optional multiple images.
+     */
+    public function store(StoreRequest $request)
     {
-        $validated = $request->validate([
-            'content' => 'required|string|max:280',
-            'images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:10240', // Multiple images
-            'images' => 'nullable|array|max:4', // Max 4 images
-        ]);
-
-        $imagePaths = [];
-
-        // Handle multiple image uploads
-        if ($request->hasFile('images')) {
-            foreach ($request->file('images') as $image) {
-                $path = $image->store('posts', 'public');
-                $imagePaths[] = asset('storage/' . $path);
-            }
-        }
+        $imagePaths = $this->handleImages($request);
 
         $post = Post::create([
             'user_id' => Auth::id(),
             'content' => $request->content,
-            'images' => !empty($imagePaths) ? $imagePaths : null,
+            'images'  => $imagePaths ?: null,
         ]);
 
-        Log::info('Post created successfully', [
-            'post_id' => $post->id,
-            'user_id' => Auth::id(),
-            'content_length' => strlen((string) ($request->content ?? '')),
-            'images_count' => count($imagePaths),
+        Log::info('Post created', [
+            'post_id'       => $post->id,
+            'user_id'       => Auth::id(),
+            'content_len'   => strlen($request->content ?? ''),
+            'images_count'  => count($imagePaths),
         ]);
 
         return redirect()->back()->with('success', 'Post created successfully!');
     }
 
+    /**
+     * Show post detail including comments.
+     */
     public function show(Post $post)
     {
         $post->loadCount('comments');
-        // Load the post user and comments (with their user), ordering comments newest-first
         $post->load([
             'user',
-            'comments' => function ($query) {
-                $query->with('user')->orderBy('created_at', 'desc');
-            },
+            'comments' => fn ($q) => $q->with('user')->latest(),
         ]);
-        
+
         return Inertia::render('PostDetail', [
             'post' => $post,
             'user' => Auth::user(),
         ]);
     }
 
+    /**
+     * Delete a post owned by the authenticated user.
+     */
     public function destroy(Post $post)
     {
         if ($post->user_id !== Auth::id()) {
@@ -207,7 +135,7 @@ class PostController extends Controller
 
         $post->delete();
 
-        Log::info('Post deleted successfully', [
+        Log::info('Post deleted', [
             'post_id' => $post->id,
             'user_id' => Auth::id(),
         ]);
@@ -215,51 +143,152 @@ class PostController extends Controller
         return redirect()->back()->with('success', 'Post deleted successfully!');
     }
 
+    /**
+     * List posts liked by authenticated user.
+     */
     public function likes()
     {
         $userId = Auth::id();
 
-        $posts = Post::whereHas('likes', function ($query) use ($userId) {
-            $query->where('user_id', $userId);
-        })
+        $posts = Post::whereHas('likes', fn ($q) => $q->where('user_id', $userId))
             ->with('user')
             ->withCount(['likes', 'bookmarks', 'comments'])
-            ->orderBy('created_at', 'desc')
+            ->latest()
             ->get()
             ->map(function ($post) use ($userId) {
-                $post->liked = true; // Since we're on the likes page, these are liked
-                $post->bookmarked = $post->bookmarks()->where('user_id', $userId)->exists();
+                $post->liked        = true;
+                $post->bookmarked   = $post->bookmarks()->where('user_id', $userId)->exists();
                 $post->replies_count = $post->comments_count;
                 return $post;
             });
 
         return Inertia::render('Likes', [
-            'user' => Auth::user(),
+            'user'  => Auth::user(),
             'posts' => $posts,
         ]);
     }
 
+    /**
+     * List posts bookmarked by authenticated user.
+     */
     public function bookmarks()
     {
         $userId = Auth::id();
 
-        $posts = Post::whereHas('bookmarks', function ($query) use ($userId) {
-            $query->where('user_id', $userId);
-        })
+        $posts = Post::whereHas('bookmarks', fn ($q) => $q->where('user_id', $userId))
             ->with('user')
             ->withCount(['likes', 'bookmarks', 'comments'])
-            ->orderBy('created_at', 'desc')
+            ->latest()
             ->get()
             ->map(function ($post) use ($userId) {
-                $post->liked = $post->likes()->where('user_id', $userId)->exists();
-                $post->bookmarked = true; // Since we're on the bookmarks page, these are bookmarked
+                $post->liked        = $post->likes()->where('user_id', $userId)->exists();
+                $post->bookmarked   = true;
                 $post->replies_count = $post->comments_count;
                 return $post;
             });
 
         return Inertia::render('Bookmarks', [
-            'user' => Auth::user(),
+            'user'  => Auth::user(),
             'posts' => $posts,
         ]);
+    }
+
+    /* -------------------------------------------------------
+     | Private Helper Methods (Clean Architecture)
+     ------------------------------------------------------- */
+
+    /**
+     * Ensure the user is authenticated.
+     */
+    private function ensureAuthenticated($userId)
+    {
+        if (! $userId) {
+            abort(401, 'Unauthorized');
+        }
+    }
+
+    /**
+     * Toggle pivot relation (like/bookmark).
+     */
+    private function toggleRelation($relation, $userId)
+    {
+        $exists = $relation->where('user_id', $userId)->exists();
+
+        $exists ? $relation->detach($userId)
+                : $relation->attach($userId);
+
+        return ! $exists;
+    }
+
+    /**
+     * Handle multiple image uploads.
+     */
+    private function handleImages(Request $request)
+    {
+        if (! $request->hasFile('images')) {
+            return [];
+        }
+
+        return collect($request->file('images'))
+            ->map(fn ($img) => asset('storage/' . $img->store('posts', 'public')))
+            ->toArray();
+    }
+
+    /**
+     * Format original posts for feed.
+     */
+    private function getFormattedPosts($userId)
+    {
+        return Post::with('user')
+            ->withCount(['likes', 'bookmarks', 'reposts'])
+            ->latest()
+            ->get()
+            ->map(function ($post) use ($userId) {
+                $post->type            = 'post';
+                $post->liked           = $post->likes()->where('user_id', $userId)->exists();
+                $post->bookmarked      = $post->bookmarks()->where('user_id', $userId)->exists();
+                $post->reposted        = $post->reposts()->where('user_id', $userId)->exists();
+                $post->likes_count     = $post->likes_count;
+                $post->bookmarks_count = $post->bookmarks_count;
+                $post->reposts_count   = $post->reposts_count;
+                return $post;
+            });
+    }
+
+    /**
+     * Convert reposts into unified feed objects.
+     */
+    private function getFormattedReposts($userId)
+    {
+        return Repost::with(['user', 'post' => fn ($q) =>
+            $q->with('user')->withCount(['likes', 'bookmarks', 'reposts'])
+        ])
+        ->latest()
+        ->get()
+        ->map(function ($repost) use ($userId) {
+            $post = $repost->post;
+
+            return (object) [
+                'id'                => "repost_{$repost->id}",
+                'type'              => 'repost',
+                'repost_id'         => $repost->id,
+                'user_id'           => $repost->user_id,
+                'post_id'           => $post->id,
+                'user'              => $repost->user,
+                'content'           => $post->content,
+                'images'            => $post->images,
+                'repost_caption'    => $repost->caption,
+                'repost_images'     => $repost->images,
+                'created_at'        => $repost->created_at,
+                'original_post_user'=> $post->user,
+                'likes_count'       => $post->likes_count,
+                'bookmarks_count'   => $post->bookmarks_count,
+                'reposts_count'     => $post->reposts_count,
+                'replies_count'     => $post->comments()->count(),
+                'liked'             => $post->likes()->where('user_id', $userId)->exists(),
+                'bookmarked'        => $post->bookmarks()->where('user_id', $userId)->exists(),
+                'reposted'          => $post->reposts()->where('user_id', $userId)->exists(),
+            ];
+        });
     }
 }
