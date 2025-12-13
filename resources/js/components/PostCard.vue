@@ -206,7 +206,7 @@ const deleteRepost = async () => {
     }
     try {
         console.log('Deleting repost with ID:', props.post.repost_id);
-        
+
         await router.delete(`/reposts/${props.post.repost_id}`, {
             preserveState: false,
             onSuccess: () => {
@@ -227,7 +227,7 @@ const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
     const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
-    
+
     if (diffInHours < 1) {
         const diffInMinutes = Math.floor(diffInHours * 60);
         return `${diffInMinutes}m`;
@@ -307,27 +307,29 @@ const handleCommented = async () => {
         <!-- User Header -->
         <div class="flex items-start justify-between mb-3">
             <div class="flex items-start space-x-3">
-                <Link :href="`/${post.user.name}`" class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-medium text-sm flex-shrink-0 hover:bg-blue-600 transition-colors">
+                <Link :href="`/${post.user.name}`"
+                    class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-medium text-sm flex-shrink-0 hover:bg-blue-600 transition-colors">
                     {{ post.user.name.charAt(0).toUpperCase() }}
                 </Link>
                 <div class="min-w-0 flex-1">
                     <div class="flex items-center space-x-2">
-                        <Link :href="`/${post.user.name}`" class="font-semibold text-gray-900 truncate hover:underline">{{ post.user.name }}</Link>
-                        <Link :href="`/${post.user.name}`" class="text-gray-500 text-sm hover:underline">@{{ post.user.name }}</Link>
+                        <Link :href="`/${post.user.name}`" class="font-semibold text-gray-900 truncate hover:underline">
+                            {{ post.user.name }}</Link>
+                        <Link :href="`/${post.user.name}`" class="text-gray-500 text-sm hover:underline">@{{
+                            post.user.name }}</Link>
                         <span class="text-gray-400">·</span>
                         <span class="text-gray-500 text-sm">{{ formatDate(post.created_at) }}</span>
                     </div>
                 </div>
             </div>
-            
+
             <!-- Delete Button (only for own posts) -->
-            <button 
-                v-if="isOwnPost"
-                @click="deletePost"
-                class="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
-            >
+            <button v-if="isOwnPost" @click="deletePost"
+                class="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                    </path>
                 </svg>
             </button>
         </div>
@@ -346,26 +348,22 @@ const handleCommented = async () => {
             <div v-if="post.type === 'repost'" class="mb-3 border border-gray-300 rounded-lg p-3 bg-gray-50">
                 <!-- Original post user info -->
                 <div class="flex items-start space-x-2 mb-2">
-                    <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-medium text-xs flex-shrink-0">
+                    <div
+                        class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-medium text-xs flex-shrink-0">
                         {{ post.original_post_user?.name.charAt(0).toUpperCase() }}
                     </div>
                     <div class="flex-1 min-w-0">
                         <p class="font-semibold text-gray-900 text-sm">{{ post.original_post_user?.name }}</p>
                     </div>
                 </div>
-                
+
                 <!-- Original post content -->
                 <p class="text-gray-900 text-sm whitespace-pre-wrap leading-relaxed mb-2">{{ post.content }}</p>
 
                 <!-- Original post images -->
                 <div v-if="post.images && post.images.length > 0" class="grid grid-cols-2 gap-2 mb-2">
-                    <img 
-                        v-for="(image, index) in post.images"
-                        :key="index"
-                        :src="image" 
-                        :alt="`Image ${index + 1}`"
-                        class="w-full h-24 object-cover rounded border border-gray-300"
-                    />
+                    <img v-for="(image, index) in post.images" :key="index" :src="image" :alt="`Image ${index + 1}`"
+                        class="w-full h-24 object-cover rounded border border-gray-300" />
                 </div>
             </div>
 
@@ -375,14 +373,11 @@ const handleCommented = async () => {
             </div>
 
             <!-- Repost images (jika ada) -->
-            <div v-if="post.type === 'repost' && post.repost_images && post.repost_images.length > 0" class="grid grid-cols-2 gap-2 mb-3">
-                <img 
-                    v-for="(image, index) in post.repost_images"
-                    :key="index"
-                    :src="image" 
+            <div v-if="post.type === 'repost' && post.repost_images && post.repost_images.length > 0"
+                class="grid grid-cols-2 gap-2 mb-3">
+                <img v-for="(image, index) in post.repost_images" :key="index" :src="image"
                     :alt="`Repost Image ${index + 1}`"
-                    class="w-full h-24 object-cover rounded border border-gray-200"
-                />
+                    class="w-full h-24 object-cover rounded border border-gray-200" />
             </div>
 
             <!-- Regular post content (non-repost) -->
@@ -391,100 +386,81 @@ const handleCommented = async () => {
 
                 <!-- Images for regular post -->
                 <div v-if="post.images && post.images.length > 0" class="mt-3 grid grid-cols-2 gap-2">
-                    <img
-                        v-for="(image, index) in post.images"
-                        :key="index"
-                        :src="image"
-                        :alt="`Image ${index + 1}`"
+                    <img v-for="(image, index) in post.images" :key="index" :src="image" :alt="`Image ${index + 1}`"
                         class="max-w-full h-auto rounded-lg border border-gray-200 cursor-pointer hover:opacity-90 transition-opacity"
-                        @click="openImageViewer(post.images, index)"
-                    />
+                        @click="openImageViewer(post.images, index)" />
                 </div>
 
                 <!-- Single image_url fallback -->
                 <div v-if="post.image_url && !imageError" class="mt-3">
-                    <img 
-                        :src="post.image_url" 
-                        :alt="`Image from ${post.user.name}'s post`"
-                        class="max-w-full h-auto rounded-lg border border-gray-200"
-                        @error="handleImageError"
-                    />
+                    <img :src="post.image_url" :alt="`Image from ${post.user.name}'s post`"
+                        class="max-w-full h-auto rounded-lg border border-gray-200" @error="handleImageError" />
                 </div>
             </div>
-            
+
             <!-- Comments are hidden in card view, shown on detail page -->
         </div>
 
         <!-- Action Buttons -->
         <div class="flex items-center space-x-4 text-gray-500">
             <!-- Repost (left arrow) - Trigger repost modal -->
-            <button 
-                @click="openRepostModal"
+            <button @click="openRepostModal"
                 :class="['flex items-center space-x-2 hover:text-green-500 transition-colors group', reposted ? 'text-green-500' : 'text-gray-500']"
-                :disabled="repostLoading"
-            >
+                :disabled="repostLoading">
                 <div class="p-2 rounded-full group-hover:bg-green-50 transition-colors">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path>
                     </svg>
                 </div>
                 <span class="text-sm">{{ reposts || '' }}</span>
             </button>
 
             <!-- Comment (opens comment modal) -->
-            <button @click="openCommentModal" class="flex items-center space-x-2 hover:text-blue-500 transition-colors group">
+            <button @click="openCommentModal"
+                class="flex items-center space-x-2 hover:text-blue-500 transition-colors group">
                 <div class="p-2 rounded-full group-hover:bg-blue-50 transition-colors">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4-.8L3 20l1.2-3.8A7.966 7.966 0 013 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4-.8L3 20l1.2-3.8A7.966 7.966 0 013 12c0-4.418 4.03-8 9-8s9 3.582 9 8z">
+                        </path>
                     </svg>
                 </div>
                 <span class="text-sm">{{ commentsCount || '' }}</span>
             </button>
 
             <!-- Like -->
-            <button
-                @click.prevent="toggleLike"
+            <button @click.prevent="toggleLike"
                 :class="['flex items-center space-x-2 px-2 py-1 rounded transition-colors', liked ? 'text-red-500 bg-red-50' : 'text-gray-500 hover:bg-gray-100']"
-                aria-label="Like"
-            >
+                aria-label="Like">
                 <svg class="w-4 h-4" :fill="liked ? 'currentColor' : 'none'" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z">
+                    </path>
                 </svg>
                 <span class="text-sm">{{ likes }}</span>
             </button>
 
             <!-- Bookmark -->
-            <button
-                @click.prevent="toggleBookmark"
+            <button @click.prevent="toggleBookmark"
                 :class="['flex items-center space-x-2 px-2 py-1 rounded transition-colors', bookmarked ? 'text-yellow-500 bg-yellow-50' : 'text-gray-500 hover:bg-gray-100']"
-                aria-label="Bookmark"
-            >
-                <svg class="w-4 h-4" :fill="bookmarked ? 'currentColor' : 'none'" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h6a2 2 0 012 2v16l-7-3.5L5 21V5z"></path>
+                aria-label="Bookmark">
+                <svg class="w-4 h-4" :fill="bookmarked ? 'currentColor' : 'none'" stroke="currentColor"
+                    viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M5 5a2 2 0 012-2h6a2 2 0 012 2v16l-7-3.5L5 21V5z"></path>
                 </svg>
                 <span class="text-sm">{{ bookmarks }}</span>
             </button>
 
             <!-- Share -->
-            <button
-                @click="openShareModal"
-                class="group flex items-center space-x-2 transition-colors hover:text-green-500"
-            >
-                <div
-                    class="rounded-full p-2 transition-colors group-hover:bg-green-50"
-                >
-                    <svg
-                        class="h-4 w-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                    >
-                        <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z"
-                        ></path>
+            <button @click="openShareModal"
+                class="group flex items-center space-x-2 transition-colors hover:text-green-500">
+                <div class="rounded-full p-2 transition-colors group-hover:bg-green-50">
+                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z">
+                        </path>
                     </svg>
                 </div>
             </button>
@@ -492,36 +468,19 @@ const handleCommented = async () => {
     </div>
 
     <!-- Repost Modal -->
-    <RepostModal
-        v-if="showRepostModal"
-        :post="post"
-        :target-post-id="post.type === 'repost' && post.post_id ? post.post_id : post.id"
-        @close="closeRepostModal"
-        @submitted="handleRepostSubmitted"
-    />
+    <RepostModal v-if="showRepostModal" :post="post"
+        :target-post-id="post.type === 'repost' && post.post_id ? post.post_id : post.id" @close="closeRepostModal"
+        @submitted="handleRepostSubmitted" />
 
     <!-- Share Modal -->
-    <ShareModal
-        :is-open="showShareModal"
-        :post="post"
-        @close="closeShareModal"
-        @shared="handlePostShared"
-    />
+    <ShareModal :is-open="showShareModal" :post="post" @close="closeShareModal" @shared="handlePostShared" />
 
     <!-- Image Viewer Modal -->
-    <ImageViewerModal
-        :is-open="showImageViewer"
-        :images="imageViewerImages"
-        :current-index="imageViewerCurrentIndex"
-        @close="closeImageViewer"
-    />
+    <ImageViewerModal :is-open="showImageViewer" :images="imageViewerImages" :current-index="imageViewerCurrentIndex"
+        @close="closeImageViewer" />
 
     <!-- Comment Modal -->
-    <CommentModal 
-        :isOpen="showCommentModal" 
+    <CommentModal :isOpen="showCommentModal"
         :postId="props.post.type === 'repost' && props.post.post_id ? props.post.post_id : props.post.id"
-        :user="props.currentUser"
-        @close="closeCommentModal"
-        @commented="handleCommented"
-    />
+        :user="props.currentUser" @close="closeCommentModal" @commented="handleCommented" />
 </template>
