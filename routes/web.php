@@ -77,13 +77,18 @@ Route::middleware(['web', 'auth'])->group(function () {
     Route::delete('/reposts/{repost}', [RepostController::class, 'destroy'])->name('reposts.destroy');
     Route::get('/posts/{post}/reposts', [RepostController::class, 'getReposts'])->name('posts.reposts');
     Route::get('/posts/{post}/has-reposted', [RepostController::class, 'hasUserReposted'])->name('posts.has-reposted');
-    Route::get('/chat/{user}', [MessageController::class, 'index'])->name('messages.index');
+    Route::get('/chat/{user?}', [MessageController::class, 'index'])->name('messages.index');
 
     // "API" untuk frontend (session auth)
     Route::get('/api/messages', [MessageController::class, 'list'])->name('messages.list');
     Route::get('/api/messages/{user}', [MessageController::class, 'fetch'])->name('messages.fetch');
     Route::post('/api/messages', [MessageController::class, 'send'])->name('messages.send');
+    Route::delete('/api/messages/{message}', [MessageController::class, 'destroy'])->name('messages.destroy');
+    Route::post('/api/messages/{user}/read', [MessageController::class, 'markAsRead'])->name('messages.read');
+    Route::post('/api/messages/upload', [MessageController::class, 'uploadImage'])->name('messages.upload');
+    Route::get('/api/chat/users', [MessageController::class, 'users'])->name('messages.users');
     Route::post('/api/posts/share', [MessageController::class, 'sharePost'])->name('posts.share');
+
     Route::get('/api/users', [UserController::class, 'apiIndex'])->name('users.api.index');
 
 });
