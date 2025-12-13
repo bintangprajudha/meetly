@@ -2,27 +2,27 @@
 
 namespace App\Events;
 
-use App\Models\Message;
 use Illuminate\Broadcasting\Channel;
-use Illuminate\Broadcasting\InteractsWithSockets;
-use Illuminate\Broadcasting\PresenceChannel;
-use Illuminate\Broadcasting\PrivateChannel;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
-use Illuminate\Foundation\Events\Dispatchable;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Broadcasting\PrivateChannel;
+use Illuminate\Broadcasting\PresenceChannel;
+use Illuminate\Foundation\Events\Dispatchable;
+use Illuminate\Broadcasting\InteractsWithSockets;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 
-class NewMessage implements ShouldBroadcast
+class MessageDeleted
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
+
+    public $id;
 
     /**
      * Create a new event instance.
      */
-    public $message;
-
-    public function __construct(Message $message)
+    public function __construct($id)
     {
-        $this->message = $message;
+        $this->id = $id;
     }
 
     /**
@@ -32,13 +32,13 @@ class NewMessage implements ShouldBroadcast
      */
     public function broadcastOn()
     {
-         return new PrivateChannel('chat.' . $this->message->receiver_id);
+        // broadcast to both sender and receiver channels could be considered
+        return new PrivateChannel('chat.' . Auth::id());
     }
+
 
     public function broadcastWith()
     {
-        return [
-            'message' => $this->message
-        ];
+        return ['id' => $this->id];
     }
 }
