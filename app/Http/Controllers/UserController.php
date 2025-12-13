@@ -5,179 +5,210 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\Post;
 use App\Models\Repost;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
+/**
+ * Controller for handling user profile pages and all related
+ * composite data such as posts, reposts, replies, and liked posts.
+ *
+ * NOTE:
+ * - This controller is intentionally read-focused.
+ * - All heavy business logic will be moved to a Service layer for maintainability.
+ */
+
 class UserController extends Controller
-{
+{   
+    /**
+     * API: Get minimal user list used for autocomplete / search.
+     */
     public function apiIndex()
     {
         return User::select('id', 'name', 'avatar')->get();
     }
 
+     /**
+     * Show the public profile of a given username, including:
+     * - User details
+     * - Posts they created
+     * - Posts they reposted
+     * - Their replies
+     * - Posts they liked
+     *
+     * This merges multiple content types into a unified feed.
+     */
     public function show($username)
     {
-        // Find user by username
-        $user = User::where('name', $username)
-            ->withCount(['followers', 'following']) 
-            ->firstOrFail();
-
-        $userId = Auth::id();
-
-        // Get user's posts with eager loading
-        $posts = Post::with('user')
-            ->where('user_id', $user->id)
-            ->withCount('likes')
-            ->withCount('bookmarks')
-            ->withCount('reposts')
-            ->orderBy('created_at', 'desc')
-            ->get()
-            ->map(function ($post) use ($userId) {
-                $post->liked = $userId ? $post->likes()->where('user_id', $userId)->exists() : false;
-                $post->bookmarked = $userId ? $post->bookmarks()->where('user_id', $userId)->exists() : false;
-                $post->reposted = $userId ? $post->reposts()->where('user_id', $userId)->exists() : false;
-                $post->likes_count = $post->likes_count ?? $post->likes()->count();
-                $post->bookmarks_count = $post->bookmarks_count ?? $post->bookmarks()->count();
-                $post->reposts_count = $post->reposts_count ?? $post->reposts()->count();
-                $post->type = 'post';
-                return $post;
-            });
-
-        // Get user's reposts
-        $reposts = Repost::with(['user', 'post' => function ($query) {
-            $query->with('user')->withCount(['likes', 'bookmarks', 'reposts']);
-        }])
-        ->where('user_id', $user->id)
-        ->orderBy('created_at', 'desc')
-        ->get()
-        ->map(function ($repost) use ($userId) {
-            $originalPost = $repost->post;
-            
-            return (object) [
-                'id' => 'repost_' . $repost->id,
-                'type' => 'repost',
-                'repost_id' => $repost->id,
-                'user_id' => $repost->user_id,
-                'post_id' => $originalPost->id,
-                'user' => [
-                    'id' => $repost->user->id,
-                    'name' => $repost->user->name,
-                    'email' => $repost->user->email,
-                ],
-                'content' => $originalPost->content,
-                'images' => $originalPost->images,
-                'repost_caption' => $repost->caption,
-                'repost_images' => $repost->images,
-                'created_at' => $repost->created_at,
-                'original_post_user' => [
-                    'id' => $originalPost->user->id,
-                    'name' => $originalPost->user->name,
-                    'email' => $originalPost->user->email,
-                ],
-                'likes_count' => $originalPost->likes_count ?? $originalPost->likes()->count(),
-                'bookmarks_count' => $originalPost->bookmarks_count ?? $originalPost->bookmarks()->count(),
-                'reposts_count' => $originalPost->reposts_count ?? $originalPost->reposts()->count(),
-                'replies_count' => $originalPost->comments()->count(),
-                'liked' => $userId ? $originalPost->likes()->where('user_id', $userId)->exists() : false,
-                'bookmarked' => $userId ? $originalPost->bookmarks()->where('user_id', $userId)->exists() : false,
-                'reposted' => $userId ? $originalPost->reposts()->where('user_id', $userId)->exists() : false,
-            ];
-        });
-
-        // Merge posts and reposts
-        $allPosts = collect($posts)->merge($reposts)
-            ->sortByDesc(function ($item) {
-                return strtotime($item->created_at);
-            })
-            ->values();
-
-        $likedPosts = $user->likes()->with('user')->latest()->get();
-        /** @var \App\Models\User|null $authUser */
+        $profileUser = $this->getProfileUser($username);
         $authUser = Auth::user();
-        $authUserId = $authUser ? $authUser->id : null;
+        $authUserId = $authUser?->id;
 
-        // Get user's posts with eager loading and counts
-        $posts = Post::with('user')
-            ->where('user_id', $user->id)
-            ->withCount(['likes', 'bookmarks', 'comments'])
-            ->orderBy('created_at', 'desc')
+        // Fetch 3 content groups
+        $posts   = $this->getUserPosts($profileUser->id, $authUserId);
+        $reposts = $this->getUserReposts($profileUser->id, $authUserId);
+
+        // Merge into a single timeline
+        $allPosts = $this->mergeAllPosts($posts, $reposts);
+
+        return Inertia::render('UserProfile', [
+            'profileUser' => $profileUser,
+            'posts'       => $allPosts,
+            'postsCount'  => $allPosts->count(),
+            'isFollowing' => $authUser ? $authUser->following->contains($profileUser->id) : false,
+            'auth' => [ 'user' => $authUser ],
+            'likedPosts' => $this->getLikedPosts($profileUser, $authUserId),
+            'replies'    => $this->getUserReplies($profileUser),
+        ]);
+    }
+
+     /**
+     * Fetch profile owner with follower/following count.
+     */ 
+    private function getProfileUser($username)
+    {
+        return User::where('name', $username)
+            ->withCount(['followers', 'following'])
+            ->firstOrFail();
+    }
+
+    /**
+     * Fetch user's posts with mapped metadata like likes, bookmarks, etc.
+     */
+    private function getUserPosts($userId, $authUserId)
+    {
+        return Post::with('user')
+            ->withCount(['likes', 'bookmarks', 'reposts', 'comments'])
+            ->where('user_id', $userId)
+            ->latest()
             ->get()
-            ->map(function ($post) use ($authUserId) {
-                if ($authUserId) {
-                    $post->liked = $post->likes()->where('user_id', $authUserId)->exists();
-                    $post->bookmarked = $post->bookmarks()->where('user_id', $authUserId)->exists();
-                } else {
-                    $post->liked = false;
-                    $post->bookmarked = false;
-                }
-                $post->replies_count = $post->comments_count;
-                return $post;
-            });
+            ->map(fn($post) => $this->mapPost($post, $authUserId));
+    }
 
-        // Get liked posts with proper counts and status
-        $likedPosts = $user->likes()
-            ->with('user')
+    /**
+     * Fetch reposts made by the user and attach original post metadata.
+     */
+    private function getUserReposts($userId, $authUserId)
+    {
+        return Repost::with([
+                'user',
+                'post.user',
+                'post' => fn($q) =>
+                    $q->withCount(['likes', 'bookmarks', 'reposts'])
+            ])
+            ->where('user_id', $userId)
+            ->latest()
+            ->get()
+            ->map(fn($repost) => $this->mapRepost($repost, $authUserId));
+    }
+
+    /**
+     * Merge posts and reposts into a single feed sorted by creation time.
+     */
+    private function mergeAllPosts($posts, $reposts)
+    {
+        return collect($posts)->merge($reposts)
+            ->sortByDesc(fn($i) => strtotime($i->created_at))
+            ->values();
+    }
+
+    /**
+     * Fetch posts liked by profile owner.
+     */
+    private function getLikedPosts($profileUser, $authUserId)
+    {
+        return $profileUser->likes()
+            ->with(['user'])
             ->withCount(['likes', 'bookmarks', 'comments'])
             ->latest()
             ->get()
-            ->map(function ($post) use ($authUserId) {
-                if ($authUserId) {
-                    $post->liked = $post->likes()->where('user_id', $authUserId)->exists();
-                    $post->bookmarked = $post->bookmarks()->where('user_id', $authUserId)->exists();
-                } else {
-                    $post->liked = false;
-                    $post->bookmarked = false;
-                }
-                $post->replies_count = $post->comments_count;
-                return $post;
-            });
+            ->map(fn($post) => $this->mapPost($post, $authUserId));
+    }
 
-        // Get user's comments/replies on other posts
-        $replies = $user->comments()
+    /**
+     * Fetch profile owner's replies and include nested post/user context.
+     */
+    private function getUserReplies($profileUser)
+    {
+        return $profileUser->comments()
             ->with(['post.user', 'user'])
             ->latest()
             ->get()
-            ->map(function ($comment) {
-                return [
-                    'id' => 'comment_' . $comment->id,
-                    'type' => 'comment',
-                    'comment_id' => $comment->id,
-                    'content' => $comment->content,
-                    'created_at' => $comment->created_at,
+            ->map(fn($c) => [
+                'id'          => "comment_$c->id",
+                'type'        => 'comment',
+                'comment_id'  => $c->id,
+                'content'     => $c->content,
+                'created_at'  => $c->created_at,
+                'user' => [
+                    'id'    => $c->user->id,
+                    'name'  => $c->user->name,
+                    'email' => $c->user->email,
+                ],
+                'post' => [
+                    'id'      => $c->post->id,
+                    'content' => $c->post->content,
                     'user' => [
-                        'id' => $comment->user->id,
-                        'name' => $comment->user->name,
-                        'email' => $comment->user->email,
+                        'id'    => $c->post->user->id,
+                        'name'  => $c->post->user->name,
+                        'email' => $c->post->user->email,
                     ],
-                    'post' => [
-                        'id' => $comment->post->id,
-                        'content' => $comment->post->content,
-                        'user' => [
-                            'id' => $comment->post->user->id,
-                            'name' => $comment->post->user->name,
-                            'email' => $comment->post->user->email,
-                        ],
-                    ],
-                    'likes_count' => 0,
-                    'bookmarks_count' => 0,
-                    'reposts_count' => 0,
-                    'replies_count' => 0,
-                ];
-            });
+                ],
+                'likes_count'     => 0,
+                'bookmarks_count' => 0,
+                'reposts_count'   => 0,
+                'replies_count'   => 0,
+            ]);
+    }
 
-        return Inertia::render('UserProfile', [
-            'profileUser' => $user,
-            'posts' => $allPosts,
-            'postsCount' => $allPosts->count(),
-            'isFollowing' => auth()->check()
-                ? auth()->user()->isFollowing($user)
-                : false,
-            'auth' => [
-                'user' => $authUser
+    /**
+     * Map a Post model to include metadata for the frontend.
+     */
+    private function mapPost($post, $authUserId)
+    {
+        $post->type = 'post';
+        $post->liked = $authUserId ? $post->likes()->where('user_id', $authUserId)->exists() : false;
+        $post->bookmarked = $authUserId ? $post->bookmarks()->where('user_id', $authUserId)->exists() : false;
+        $post->reposted = $authUserId ? $post->reposts()->where('user_id', $authUserId)->exists() : false;
+        $post->replies_count = $post->comments_count ?? 0;
+
+        return $post;
+    }
+
+    /**
+     * Map a repost into a unified format similar to a post object.
+     */
+    private function mapRepost($repost, $authUserId)
+    {
+        $original = $repost->post;
+
+        return (object) [
+            'id'              => "repost_{$repost->id}",
+            'type'            => 'repost',
+            'repost_id'       => $repost->id,
+            'user_id'         => $repost->user_id,
+            'post_id'         => $original->id,
+            'user' => [
+                'id'    => $repost->user->id,
+                'name'  => $repost->user->name,
+                'email' => $repost->user->email,
             ],
-            'likedPosts' => $likedPosts ?? [],
-            'replies' => $replies ?? []
-        ]);
+            'content'         => $original->content,
+            'images'          => $original->images,
+            'repost_caption'  => $repost->caption,
+            'repost_images'   => $repost->images,
+            'created_at'      => $repost->created_at,
+            'original_post_user' => [
+                'id'    => $original->user->id,
+                'name'  => $original->user->name,
+                'email' => $original->user->email,
+            ],
+            'likes_count'     => $original->likes_count     ?? $original->likes()->count(),
+            'bookmarks_count' => $original->bookmarks_count ?? $original->bookmarks()->count(),
+            'reposts_count'   => $original->reposts_count   ?? $original->reposts()->count(),
+            'replies_count'   => $original->comments()->count(),
+            'liked'           => $authUserId ? $original->likes()->where('user_id', $authUserId)->exists() : false,
+            'bookmarked'      => $authUserId ? $original->bookmarks()->where('user_id', $authUserId)->exists() : false,
+            'reposted'        => $authUserId ? $original->reposts()->where('user_id', $authUserId)->exists() : false,
+        ];
     }
 }

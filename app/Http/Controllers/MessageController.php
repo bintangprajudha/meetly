@@ -6,15 +6,15 @@ use App\Models\User;
 use Inertia\Inertia;
 use App\Models\Message;
 use App\Events\NewMessage;
+use App\Events\MessageRead;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
 
 
 class MessageController extends Controller
 {   
-    // raka
-    // komen
-    public function index(User $user)
+    public function index(User $user = null)
     {
         return Inertia::render('Messages/Chat', [
             'chatUser' => $user,
@@ -28,27 +28,45 @@ class MessageController extends Controller
     {
         $me = Auth::id();
 
-        return Message::where(function ($q) use ($me, $user) {
-                $q->where('sender_id', $me)
-                  ->where('receiver_id', $user->id);
-            })
-            ->orWhere(function ($q) use ($me, $user) {
-                $q->where('sender_id', $user->id)
-                  ->where('receiver_id', $me);
-            })
-            ->orderBy('created_at')
-            ->get();
+        if ($user->id === $me) {
+            return response()->json(['error' => 'Cannot chat with yourself'], 403);
+        }
+
+        $messages = Message::where(function ($q) use ($me, $user) {
+            $q->where('sender_id', $me)
+              ->where('receiver_id', $user->id);
+        })
+        ->orWhere(function ($q) use ($me, $user) {
+            $q->where('sender_id', $user->id)
+              ->where('receiver_id', $me);
+        })
+        ->orderBy('created_at')
+        ->get();
+
+        Message::where('sender_id', $user->id)
+            ->where('receiver_id', $me)
+            ->where('status', '!=', 'read')
+            ->update(['status' => 'read']);
+
+        return $messages;
     }
 
     public function send(Request $request)
-    {
+    {   
+        $me = Auth::id();
+
+        if ($request->receiver_id == $me) {
+            return response()->json(['error' => 'Cannot send message to yourself'], 403);
+        }
         $message = Message::create([
             'sender_id'   => Auth::id(),
             'receiver_id' => $request->receiver_id,
             'message'     => $request->message,
+            'status'      => 'sent',
         ]);
 
         broadcast(new NewMessage($message))->toOthers(); // realtime
+        event(new NewMessage($message));
 
         return $message;
     }
@@ -57,7 +75,22 @@ class MessageController extends Controller
     {
         $me = Auth::id();
 
-        $users = User::where('id', '!=', $me)->get();
+        $conversationPartners = Message::where(function($query) use ($me) {
+                $query->where('sender_id', $me)
+                    ->orWhere('receiver_id', $me);
+            })
+            ->select('sender_id', 'receiver_id')
+            ->get()
+            ->flatMap(function($message) use ($me) {
+                return [$message->sender_id, $message->receiver_id];
+            })
+            ->unique()
+            ->reject(function($id) use ($me) {
+                return $id == $me;
+            })
+            ->values();
+
+        $users = User::whereIn('id', $conversationPartners)->get();
 
         $result = $users->map(function ($user) use ($me) {
             $lastMessage = Message::where(function ($q) use ($me, $user) {
@@ -69,19 +102,87 @@ class MessageController extends Controller
                 ->orderBy('id', 'DESC')
                 ->first();
 
+            if (!$lastMessage) {
+                return null;
+            }
+
             return [
                 'user' => [
                     'id' => $user->id,
                     'name' => $user->name,
-                    'avatar' => $user->avatar ?? null,
+                    'email' => $user->email,
+                    'avatar' => null,
                 ],
                 'last_message' => $lastMessage->message ?? null,
-                'last_message_time' => $lastMessage->created_at ?? null,
+                'last_message_at' => $lastMessage->created_at ?? null,  
+                'is_read' => $lastMessage->sender_id === $user->id && $lastMessage->status === 'read',
             ];
-        });
+        })->filter()->values();
 
         return $result;
     }
+
+    public function users()
+    {
+        $me = Auth::id();
+
+        $users = User::where('id', '!=', $me)
+            ->select('id', 'name', 'email',)
+            ->orderBy('name')
+            ->get();
+
+        return $users;
+    }
+
+    public function uploadImage(Request $request)
+    {
+        $request->validate([
+            'image' => 'required|image|max:5120'
+        ]);
+
+        $path = $request->file('image')->store('messages', 'public');
+        $url = url("/storage/{$path}");
+
+        return $url;
+    }
+
+    public function markAsRead(Request $request, User $user)
+    {
+        $me = Auth::id();
+
+        // update pesan menjadi read
+        $updated = Message::where('sender_id', $user->id)
+            ->where('receiver_id', $me)
+            ->where('status', '!=', 'read')
+            ->update(['status' => 'read']);
+
+        // ambil pesan yang sudah read untuk broadcast
+        $messages = Message::where('sender_id', $user->id)
+            ->where('receiver_id', $me)
+            ->where('status', 'read')
+            ->get();
+
+        foreach ($messages as $msg) {
+            broadcast(new MessageRead($msg->id, $msg->sender_id))->toOthers();
+            event(new MessageRead($msg->id, $msg->sender_id));
+        }
+
+        return $updated; 
+    }
+
+
+    public function destroy(Message $message)
+    {
+        if ($message->sender_id != Auth::id()) {
+            abort(403, 'Unauthorized');
+        }
+
+        // hard delete
+        $message->delete();
+
+        return true; // simple, clean, sama seperti send()
+    }
+
 
     public function sharePost(Request $request)
     {
@@ -133,7 +234,7 @@ class MessageController extends Controller
                 'messages' => $messages,
             ]);
         } catch (\Exception $e) {
-            \Log::error('Share post failed: ' . $e->getMessage());
+            Log::error('Share post failed: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to share post: ' . $e->getMessage(),

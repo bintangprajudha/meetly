@@ -3,80 +3,115 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\AuthController\LoginRequest;
+use App\Http\Requests\AuthController\LogoutRequest;
+use App\Http\Requests\AuthController\RegisterRequest;
 use App\Models\User;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Authentication Controller
+ *
+ * Responsible for handling:
+ * - Login
+ * - Registration
+ * - Logout
+ *
+ * This controller delegates validation to FormRequest classes
+ * for cleaner and more maintainable code.
+ */
 class AuthController extends Controller
 {
+    /**
+     * Render the login page.
+     */
     public function showLoginForm()
     {
         return inertia('auth/Login');
     }
 
+    /**
+     * Render the registration page.
+     */
     public function showRegisterForm()
     {
         return inertia('auth/Register');
     }
 
-    public function login(Request $request)
+    /**
+     * Handle the login attempt.
+     *
+     * @param LoginRequest $request
+     *      Validated request containing email, password, remember
+     */
+    public function login(LoginRequest $request)
     {
-        $request->validate([
-            'email' => 'required|email',
-            'password' => 'required',
-        ]);
-
+        // Attempt authentication
         if (Auth::attempt($request->only('email', 'password'), $request->boolean('remember'))) {
+
+            // Regenerate session for security
             $request->session()->regenerate();
 
             return redirect()->intended('/dashboard');
         }
 
+        // Authentication failed
         throw ValidationException::withMessages([
             'email' => 'Email atau Password salah.',
         ]);
     }
 
-    public function register(Request $request)
+    /**
+     * Handle new user registration.
+     *
+     * @param RegisterRequest $request
+     *      Validated registration fields
+     */
+    public function register(RegisterRequest $request)
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:8|confirmed',
-        ]);
-
+        // Create user
         $user = User::create([
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'password' => Hash::make($validated['password']),
+            'name'     => $request->name,
+            'email'    => $request->email,
+            'password' => Hash::make($request->password),
         ]);
 
-        // Debug log
+        // Log success (non-sensitive)
         Log::info('User registered successfully', [
             'user_id' => $user->id,
-            'name' => $user->name,
-            'email' => $user->email
+            'name'    => $user->name,
+            'email'   => $user->email
         ]);
 
+        // Auto-login
         Auth::login($user);
 
         return redirect('/dashboard');
     }
-
-    public function logout(Request $request)
+    
+    /**
+     * Handle logout process.
+     *
+     * @param LogoutRequest $request
+     *      Validated logout request (if needed)
+     */
+    public function logout(LogoutRequest $request)
     {
         $user = Auth::user();
 
+        // Log pre-logout info
         Log::info('User logout initiated', [
-            'user_id' => $user ? $user->id : null,
-            'user_email' => $user ? $user->email : null
+            'user_id'    => $user?->id,
+            'user_email' => $user?->email,
         ]);
 
+        // End authentication
         Auth::logout();
 
+        // Invalidate old session & regenerate CSRF token
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
