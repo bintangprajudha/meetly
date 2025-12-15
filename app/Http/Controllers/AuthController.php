@@ -48,7 +48,16 @@ class AuthController extends Controller
      *      Validated request containing email, password, remember
      */
     public function login(LoginRequest $request)
-    {
+    {   
+        // Debug
+        Log::info('Login Attempt', [
+            'session_id' => session()->getId(),
+            'session_started' => session()->isStarted(),
+            'has_xsrf_cookie' => $request->hasCookie('XSRF-TOKEN'),
+            'xsrf_from_cookie' => $request->cookie('XSRF-TOKEN'),
+            'xsrf_from_header' => $request->header('X-XSRF-TOKEN'),
+            'csrf_from_session' => session()->token(),
+        ]);
         // Attempt authentication
         if (Auth::attempt($request->only('email', 'password'), $request->boolean('remember'))) {
 
@@ -88,6 +97,8 @@ class AuthController extends Controller
 
         // Auto-login
         Auth::login($user);
+
+        request()->session()->regenerate();
 
         return redirect('/dashboard');
     }

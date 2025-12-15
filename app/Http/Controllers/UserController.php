@@ -47,7 +47,7 @@ class UserController extends Controller
         $posts   = $this->getUserPosts($profileUser->id, $authUserId);
         $reposts = $this->getUserReposts($profileUser->id, $authUserId);
 
-        // Merge into a single timeline
+        // Merge into a single timeline for Posts tab
         $allPosts = $this->mergeAllPosts($posts, $reposts);
 
         return Inertia::render('UserProfile', [
@@ -57,7 +57,8 @@ class UserController extends Controller
             'isFollowing' => $authUser ? $authUser->following->contains($profileUser->id) : false,
             'auth' => [ 'user' => $authUser ],
             'likedPosts' => $this->getLikedPosts($profileUser, $authUserId),
-            'replies'    => $this->getUserReplies($profileUser),
+            'replies'    => $this->getUserReplies($profileUser, $authUserId),
+            'reposts'    => $reposts, // Add this line - send reposts separately for Replies tab
         ]);
     }
 
@@ -127,7 +128,7 @@ class UserController extends Controller
     /**
      * Fetch profile owner's replies and include nested post/user context.
      */
-    private function getUserReplies($profileUser)
+    private function getUserReplies($profileUser, $authUserId)
     {
         return $profileUser->comments()
             ->with(['post.user', 'user'])
@@ -157,6 +158,9 @@ class UserController extends Controller
                 'bookmarks_count' => 0,
                 'reposts_count'   => 0,
                 'replies_count'   => 0,
+                'liked'           => false,
+                'bookmarked'      => false,
+                'reposted'        => false,
             ]);
     }
 

@@ -26,6 +26,7 @@ interface Chat {
   last_message: string | null;
   last_message_at: string | null;
   is_read: boolean;
+  unread_count?: number; // Tambahkan unread count
 }
 
 const page = usePage();
@@ -50,6 +51,13 @@ const allUsers = ref<User[]>([]);
 const loadingUsers = ref(false);
 const searchQuery = ref('');
 const userSearchQuery = ref('');
+
+// Computed total unread messages
+const totalUnreadCount = computed(() => {
+  return chats.value.reduce((total, chat) => {
+    return total + (chat.unread_count || 0);
+  }, 0);
+});
 
 // Computed
 const filteredChats = computed(() => {
@@ -120,6 +128,10 @@ const fetchMessages = async () => {
   try {
     const res = await axios.get(`/api/messages/${chatUser.value.id}`);
     messages.value = res.data;
+    
+    // Mark messages as read when viewing
+    await markMessagesAsRead(chatUser.value.id);
+    
     await nextTick();
     scrollToBottom();
   } catch (err: any) {
@@ -129,6 +141,17 @@ const fetchMessages = async () => {
     } else {
       console.error("Gagal fetch messages:", err);
     }
+  }
+};
+
+// Fungsi untuk mark messages as read
+const markMessagesAsRead = async (userId: number) => {
+  try {
+    await axios.post(`/api/messages/${userId}/mark-read`);
+    // Update chat list setelah mark as read
+    await fetchChats();
+  } catch (error) {
+    console.error('Failed to mark messages as read:', error);
   }
 };
 
@@ -267,9 +290,11 @@ onMounted(() => {
   if (window.Echo && authUser?.id) {
     window.Echo.private(`chat.${authUser.id}`)
       .listen('NewMessage', (e: { message: ChatMessage }) => {
-        if (chatUser.value && (e.message.sender_id === chatUser.value.id || e.message.receiver_id === chatUser.value.id)) {
+        // Jika sedang membuka chat dengan pengirim, langsung fetch messages
+        if (chatUser.value && e.message.sender_id === chatUser.value.id) {
           fetchMessages();
         }
+        // Selalu update chat list untuk unread count
         fetchChats();
       })
       .listen('MessageDelivered', (e: { message_id: number }) => {
@@ -279,6 +304,8 @@ onMounted(() => {
       .listen('MessageRead', (e: { message_id: number }) => {
         const msg = messages.value.find(m => m.id === e.message_id);
         if (msg) msg.status = 'read';
+        // Update chat list ketika pesan dibaca
+        fetchChats();
       });
   }
 });
@@ -292,7 +319,14 @@ onMounted(() => {
         <!-- Sidebar Chat -->
         <div class="hidden md:block w-72 border-r border-[#C9C9C9] bg-white h-screen overflow-y-auto p-4 space-y-3">
           <div class="flex items-center justify-between mb-3">
-            <div class="font-semibold text-lg text-black">Obrolan</div>
+            <div class="font-semibold text-lg text-black flex items-center gap-2">
+              Obrolan
+              <!-- Total unread badge -->
+              <span v-if="totalUnreadCount > 0" 
+                class="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full min-w-[20px] text-center">
+                {{ totalUnreadCount > 99 ? '99+' : totalUnreadCount }}
+              </span>
+            </div>
             
             <!-- Button to open user selection modal -->
             <button @click="showUserModal = true" 
@@ -326,9 +360,19 @@ onMounted(() => {
             <!-- Chat list -->
             <div v-for="chat in filteredChats" :key="chat.user.id" class="mb-1 text-gray-600">
               <Link :href="`/chat/${chat.user.id}`"
-                class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-100 transition"
+                class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-100 transition relative"
                 :class="{ 'bg-red-50': chatUser?.id === chat.user.id }">
-                <img :src="chat.user.avatar ?? '/profile.png'" class="w-10 h-10 rounded-full object-cover" />
+                
+                <!-- Avatar dengan badge unread -->
+                <div class="relative">
+                  <img :src="chat.user.avatar ?? '/profile.png'" class="w-10 h-10 rounded-full object-cover" />
+                  <!-- Unread badge on avatar - hanya tampil jika ada unread dan bukan chat yang sedang dibuka -->
+                  <span v-if="chat.unread_count && chat.unread_count > 0" 
+                    class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                    {{ chat.unread_count > 9 ? '9+' : chat.unread_count }}
+                  </span>
+                </div>
+                
                 <div class="flex-1 min-w-0">
                   <div class="flex items-center justify-between gap-2 mb-1">
                     <div class="font-semibold truncate text-black">{{ chat.user.name }}</div>
@@ -336,20 +380,32 @@ onMounted(() => {
                       {{ chat.last_message_at ? formatTime(chat.last_message_at) : '' }}
                     </div>
                   </div>
-                  <div class="flex items-center gap-1.5 text-xs text-gray-500">
-                    <!-- Status icon hanya tampil jika ada last_message -->
-                    <template v-if="chat.last_message">
+                  <div class="flex items-center gap-1.5 text-xs">
+                    <!-- Status icon: HANYA tampil jika unread_count === 0 DAN is_read true/false -->
+                    <!-- unread_count === 0 artinya tidak ada pesan masuk yang belum dibaca, jadi last message pasti dari kita -->
+                    <!-- unread_count > 0 artinya ada pesan masuk belum dibaca, jadi JANGAN tampilkan status -->
+                    <template v-if="chat.last_message && chat.unread_count === 0">
+                      <!-- Double check biru: pesan kita sudah dibaca (is_read = true) -->
                       <svg v-if="chat.is_read" class="w-4 h-4 text-blue-500 flex-shrink-0" viewBox="0 0 24 24"
                         fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M20 6L9 17l-5-5" />
                         <path d="M9 17l11-11" />
                       </svg>
+                      <!-- Single check abu-abu: pesan kita terkirim tapi belum dibaca (is_read = false) -->
                       <svg v-else class="w-3.5 h-3.5 text-gray-400 flex-shrink-0" viewBox="0 0 24 24" fill="none"
                         stroke="currentColor" stroke-width="2">
                         <path d="M20 6L9 17l-5-5" />
                       </svg>
                     </template>
-                    <span class="truncate">{{ chat.last_message ?? "Belum ada pesan" }}</span>
+                    
+                    <!-- Last message dengan bold jika ada pesan masuk yang belum dibaca -->
+                    <span class="truncate" 
+                      :class="{ 
+                        'font-semibold text-gray-900': chat.unread_count && chat.unread_count > 0, 
+                        'text-gray-500': !chat.unread_count || chat.unread_count === 0 
+                      }">
+                      {{ chat.last_message ?? "Belum ada pesan" }}
+                    </span>
                   </div>
                 </div>
               </Link>
@@ -513,7 +569,7 @@ onMounted(() => {
     </div>
 
     <!-- User Selection Modal -->
-    <div v-if="showUserModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" @click.self="showUserModal = false">
+    <div v-if="showUserModal" class="fixed inset-0 backdrop-blur bg-opacity-50 flex items-center justify-center z-50 p-4" @click.self="showUserModal = false">
       <div class="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[80vh] flex flex-col">
         <!-- Modal Header -->
         <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">

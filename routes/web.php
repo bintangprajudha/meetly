@@ -15,6 +15,11 @@ Route::get('/', function () {
     return Inertia::render('Home');
 })->name('home');
 
+Route::get('/csrf-token', function () {
+    return response()->json([
+        'csrf_token' => csrf_token()
+    ]);
+})->middleware('web');
 
 // Guest routes (only accessible when not logged in)
 Route::middleware(['guest'])->group(function () {
@@ -28,8 +33,7 @@ Route::middleware(['guest'])->group(function () {
 });
 
 // Authenticated routes (only accessible when logged in)
-Route::middleware(['web', 'auth'])->group(function () {
-    Route::get('/dashboard', [PostController::class, 'index'])->name('dashboard');
+Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard', function () {
         $userId = Auth::id();
         
