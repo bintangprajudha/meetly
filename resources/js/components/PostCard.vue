@@ -43,6 +43,11 @@ const commentInput = ref('');
 const posting = ref(false);
 const commentError = ref<string | null>(null);
 
+// Media preview modal (images + videos)
+const showMediaPreview = ref(false);
+const currentMediaIndex = ref(0);
+const previewMedia = ref<Array<{ type: 'image' | 'video'; src: string }>>([]);
+
 // local reactive UI state for likes - initialized once, managed locally
 const liked = ref<boolean>(props.post.liked ?? false);
 const likes = ref<number>(props.post.likes_count ?? 0);
@@ -78,11 +83,9 @@ const toggleLike = async () => {
         if (!res.ok) throw res;
 
         const data = await res.json();
-        // Use server response as source of truth
         if (data.likes_count !== undefined) likes.value = data.likes_count;
         if (data.liked !== undefined) liked.value = data.liked;
     } catch (err) {
-        // revert optimistic
         liked.value = prevLiked;
         likes.value = prevLikes;
         console.error('Error toggling like', err);
@@ -93,7 +96,6 @@ const toggleBookmark = async () => {
     const prevBookmarked = bookmarked.value;
     const prevBookmarks = bookmarks.value;
 
-    // optimistic update
     bookmarked.value = !prevBookmarked;
     bookmarks.value += bookmarked.value ? 1 : -1;
     if (bookmarks.value < 0) bookmarks.value = 0;
@@ -116,17 +118,61 @@ const toggleBookmark = async () => {
         if (!res.ok) throw res;
 
         const data = await res.json();
-        console.log('Bookmark response:', data);
-        // Use server response as source of truth
         if (data.bookmarked !== undefined) bookmarked.value = data.bookmarked;
         if (data.bookmarks_count !== undefined)
             bookmarks.value = data.bookmarks_count;
     } catch (err) {
-        // revert optimistic
         bookmarked.value = prevBookmarked;
         bookmarks.value = prevBookmarks;
         console.error('Error toggling bookmark', err);
     }
+};
+
+// Open media preview
+const openMediaPreview = (index: number, type: 'image' | 'video') => {
+    // Combine images and videos in order
+    const media: Array<{ type: 'image' | 'video'; src: string }> = [];
+    
+    // Add all images first
+    (props.post.images || []).forEach(src => {
+        media.push({ type: 'image', src });
+    });
+    
+    // Then add all videos
+    (props.post.videos || []).forEach(src => {
+        media.push({ type: 'video', src });
+    });
+    
+    previewMedia.value = media;
+    currentMediaIndex.value = index;
+    showMediaPreview.value = true;
+};
+
+// Navigate media
+const nextMedia = () => {
+    if (currentMediaIndex.value < previewMedia.value.length - 1) {
+        currentMediaIndex.value++;
+    }
+};
+
+const prevMedia = () => {
+    if (currentMediaIndex.value > 0) {
+        currentMediaIndex.value--;
+    }
+};
+
+// Close preview
+const closeMediaPreview = () => {
+    showMediaPreview.value = false;
+};
+
+// Keyboard navigation
+const handleKeydown = (e: KeyboardEvent) => {
+    if (!showMediaPreview.value) return;
+
+    if (e.key === 'ArrowRight') nextMedia();
+    if (e.key === 'ArrowLeft') prevMedia();
+    if (e.key === 'Escape') closeMediaPreview();
 };
 
 const formatDate = (dateString: string) => {
@@ -179,11 +225,9 @@ const postComment = async () => {
         {
             preserveState: true,
             onSuccess: async () => {
-                // Clear input
                 commentInput.value = '';
                 showCommentBox.value = false;
 
-                // Fetch the latest comment from the server and prepend it so it appears immediately
                 try {
                     const res = await fetch(
                         `/posts/${props.post.id}/comments/latest`,
@@ -204,7 +248,6 @@ const postComment = async () => {
                         }
                     }
                 } catch (e) {
-                    // ignore fetch error but leave comment UI consistent
                     console.warn('Failed to fetch latest comment', e);
                 } finally {
                     posting.value = false;
@@ -220,7 +263,6 @@ const postComment = async () => {
 };
 
 const cancelComment = () => {
-    // simply close the box and clear errors (Inertia post is not abortable here)
     showCommentBox.value = false;
     commentError.value = null;
     posting.value = false;
@@ -230,6 +272,7 @@ const cancelComment = () => {
 <template>
     <div
         class="rounded-lg border border-gray-200 bg-white p-4 transition-colors hover:bg-gray-50"
+        @keydown="handleKeydown"
     >
         <!-- User Header -->
         <div class="mb-3 flex items-start justify-between">
@@ -260,7 +303,7 @@ const cancelComment = () => {
                 </div>
             </div>
 
-            <!-- Delete Button (only for own posts) -->
+            <!-- Delete Button -->
             <button
                 v-if="isOwnPost"
                 @click="deletePost"
@@ -338,13 +381,21 @@ const cancelComment = () => {
                         1,
                 }"
             >
-                <!-- Images -->
+                <!-- Images with click handler -->
                 <img
                     v-for="(image, index) in post.images || []"
                     :key="'img-' + index"
                     :src="image"
                     :alt="`Post image ${index + 1}`"
-                    class="h-64 w-full rounded-lg object-cover"
+                    :class="[
+                        'cursor-pointer rounded-lg object-cover transition-opacity hover:opacity-90',
+                        (post.images?.length || 0) +
+                            (post.videos?.length || 0) ===
+                        1
+                            ? 'max-h-96 max-w-96 object-contain'
+                            : 'h-64 w-full object-cover',
+                    ]"
+                    @click="openMediaPreview(index, 'image')"
                     @error="
                         (e) =>
                             ((e.target as HTMLImageElement).style.display =
@@ -353,13 +404,31 @@ const cancelComment = () => {
                 />
 
                 <!-- Videos -->
-                <video
+                <div
                     v-for="(video, index) in post.videos || []"
                     :key="'vid-' + index"
-                    :src="video"
-                    controls
-                    class="h-64 w-full rounded-lg object-cover"
-                ></video>
+                    class="relative cursor-pointer"
+                    @click="openMediaPreview((post.images?.length || 0) + index, 'video')"
+                >
+                    <video
+                        :src="video"
+                        :class="[
+                            'rounded-lg object-cover',
+                            (post.images?.length || 0) +
+                                (post.videos?.length || 0) ===
+                            1
+                                ? 'max-h-96 w-full object-contain'
+                                : 'h-64 w-full object-cover',
+                        ]"
+                    ></video>
+                    <div class="absolute inset-0 flex items-center justify-center">
+                        <div class="rounded-full bg-black bg-opacity-50 p-3">
+                            <svg class="h-8 w-8 text-white" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M8 5v14l11-7z"/>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Comments preview -->
@@ -395,7 +464,7 @@ const cancelComment = () => {
 
         <!-- Action Buttons -->
         <div class="flex items-center space-x-6 text-gray-500">
-            <!-- Reply (view only) -->
+            <!-- Reply -->
             <button
                 class="group flex items-center space-x-2 transition-colors hover:text-blue-500"
             >
@@ -419,7 +488,7 @@ const cancelComment = () => {
                 <span class="text-sm">{{ repliesCount || '' }}</span>
             </button>
 
-            <!-- Comment (opens comment box) -->
+            <!-- Comment -->
             <button
                 @click="toggleCommentBox"
                 class="group flex items-center space-x-2 transition-colors hover:text-blue-500"
@@ -521,5 +590,104 @@ const cancelComment = () => {
                 </div>
             </button>
         </div>
+
+        <!-- Media Preview Modal (Images + Videos) -->
+        <Teleport to="body">
+            <div
+                v-if="showMediaPreview"
+                class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-90"
+                @click="closeMediaPreview"
+            >
+                <!-- Close Button -->
+                <button
+                    @click="closeMediaPreview"
+                    class="absolute right-4 top-4 rounded-full bg-black bg-opacity-50 p-2 text-white shadow-lg transition-all hover:bg-opacity-70"
+                >
+                    <svg
+                        class="h-6 w-6"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="3"
+                            d="M6 18L18 6M6 6l12 12"
+                        ></path>
+                    </svg>
+                </button>
+
+                <!-- Previous Button -->
+                <button
+                    v-if="currentMediaIndex > 0"
+                    @click.stop="prevMedia"
+                    class="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-black bg-opacity-50 p-3 text-white shadow-lg transition-all hover:bg-opacity-70"
+                >
+                    <svg
+                        class="h-6 w-6"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="3"
+                            d="M15 19l-7-7 7-7"
+                        ></path>
+                    </svg>
+                </button>
+
+                <!-- Media Content (Image or Video) -->
+                <div @click.stop>
+                    <!-- Image -->
+                    <img
+                        v-if="previewMedia[currentMediaIndex]?.type === 'image'"
+                        :src="previewMedia[currentMediaIndex].src"
+                        :alt="`Media ${currentMediaIndex + 1}`"
+                        class="max-h-[90vh] max-w-[90vw] object-contain"
+                    />
+                    
+                    <!-- Video -->
+                    <video
+                        v-else-if="previewMedia[currentMediaIndex]?.type === 'video'"
+                        :src="previewMedia[currentMediaIndex].src"
+                        controls
+                        autoplay
+                        class="max-h-[90vh] max-w-[90vw]"
+                    ></video>
+                </div>
+
+                <!-- Next Button -->
+                <button
+                    v-if="currentMediaIndex < previewMedia.length - 1"
+                    @click.stop="nextMedia"
+                    class="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-black bg-opacity-50 p-3 text-white shadow-lg transition-all hover:bg-opacity-70"
+                >
+                    <svg
+                        class="h-6 w-6"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="3"
+                            d="M9 5l7 7-7 7"
+                        ></path>
+                    </svg>
+                </button>
+
+                <!-- Media Counter with Type -->
+                <div
+                    class="absolute bottom-4 left-1/2 -translate-x-1/2 transform rounded-full bg-black bg-opacity-50 px-4 py-2 text-white"
+                >
+                    <span class="capitalize">{{ previewMedia[currentMediaIndex]?.type }}</span>
+                    {{ currentMediaIndex + 1 }} / {{ previewMedia.length }}
+                </div>
+            </div>
+        </Teleport>
     </div>
 </template>
