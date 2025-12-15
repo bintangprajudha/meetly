@@ -18,9 +18,11 @@ class Post extends Model
         'content',
         'images',
         'videos',  // Tambahkan ini
+        'media',
         'likes_count',
         'bookmarks_count',
         'replies_count',
+        'reposts_count',
     ];
 
     protected $casts = [
@@ -28,6 +30,7 @@ class Post extends Model
         'updated_at' => 'datetime',
         'images' => 'array',
         'videos' => 'array',  // Tambahkan ini
+        'media' => 'array',
     ];
 
     public function user(): BelongsTo
@@ -40,6 +43,10 @@ class Post extends Model
         return $this->hasMany(Comment::class);
     }
 
+    public function reposts(): HasMany
+    {
+        return $this->hasMany(Repost::class);
+    }
 
     public function likes(): BelongsToMany
     {

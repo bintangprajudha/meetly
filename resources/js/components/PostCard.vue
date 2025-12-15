@@ -1,21 +1,36 @@
 <script setup lang="ts">
-import { Link, router, usePage } from '@inertiajs/vue3';
+import { Link, router } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
-
-const page = usePage();
+import CommentModal from './CommentModal.vue';
+import MediaPreviewModal from './MediaPreviewModal.vue';
+import RepostModal from './RepostModal.vue';
+import ShareModal from './ShareModal.vue';
 
 const props = defineProps<{
     post: {
-        id: number;
+        id: number | string;
+        type?: string;
         content: string;
+        image_url?: string;
         images?: string[];
         videos?: string[];
+        media?: Array<{ type: 'image' | 'video'; src: string }>;
         likes_count: number;
         bookmarks_count: number;
-        replies_count: number;
+        reposts_count?: number;
         created_at: string;
         liked?: boolean;
         bookmarked?: boolean;
+        reposted?: boolean;
+        repost_id?: number;
+        post_id?: number;
+        repost_caption?: string;
+        repost_images?: string[];
+        original_post_user?: {
+            id: number;
+            name: string;
+            email: string;
+        };
         user: {
             id: number;
             name: string;
@@ -30,18 +45,23 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-    delete: [postId: number];
-    commented: [postId: number, comment: any];
+    delete: [postId: number | string];
+    commented: [postId: number | string, comment: any];
 }>();
 
-const repliesCount = ref(props.post.replies_count || 0);
+const imageError = ref(false);
 const comments = ref(
     (props.post as any).comments ? [...(props.post as any).comments] : [],
 );
-const showCommentBox = ref(false);
-const commentInput = ref('');
-const posting = ref(false);
-const commentError = ref<string | null>(null);
+const commentsCount = computed(() => {
+    const p = props.post as any;
+    return (
+        p.comments_count ??
+        p.replies_count ??
+        (comments.value ? comments.value.length : 0)
+    );
+});
+const showCommentModal = ref(false);
 
 // Media preview modal (images + videos)
 const showMediaPreview = ref(false);
@@ -51,99 +71,87 @@ const previewMedia = ref<Array<{ type: 'image' | 'video'; src: string }>>([]);
 // local reactive UI state for likes - initialized once, managed locally
 const liked = ref<boolean>(props.post.liked ?? false);
 const likes = ref<number>(props.post.likes_count ?? 0);
-
-// local reactive UI state for bookmarks - initialized once, managed locally
 const bookmarked = ref<boolean>(props.post.bookmarked ?? false);
 const bookmarks = ref<number>(props.post.bookmarks_count ?? 0);
+const reposted = ref<boolean>(props.post.reposted ?? false);
+const reposts = ref<number>(props.post.reposts_count ?? 0);
+const showRepostModal = ref(false);
+const repostLoading = ref(false);
+const showShareModal = ref(false);
+const showDropdown = ref(false);
 
-const toggleLike = async () => {
-    const prevLiked = liked.value;
-    const prevLikes = likes.value;
-
-    // optimistic update
-    liked.value = !prevLiked;
-    likes.value += liked.value ? 1 : -1;
-    if (likes.value < 0) likes.value = 0;
-
-    try {
-        const csrfToken = (page.props as any).csrf_token || '';
-
-        const res = await fetch(`/posts/${props.post.id}/like`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': csrfToken,
-                Accept: 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-            },
-            credentials: 'same-origin',
-            body: JSON.stringify({}),
-        });
-
-        if (!res.ok) throw res;
-
-        const data = await res.json();
-        if (data.likes_count !== undefined) likes.value = data.likes_count;
-        if (data.liked !== undefined) liked.value = data.liked;
-    } catch (err) {
-        liked.value = prevLiked;
-        likes.value = prevLikes;
-        console.error('Error toggling like', err);
-    }
+const getInitials = (name: string) => {
+    if (!name) return 'U';
+    return name
+        .split(' ')
+        .map((word) => word.charAt(0))
+        .join('')
+        .toUpperCase()
+        .slice(0, 2);
 };
 
-const toggleBookmark = async () => {
-    const prevBookmarked = bookmarked.value;
-    const prevBookmarks = bookmarks.value;
-
-    bookmarked.value = !prevBookmarked;
-    bookmarks.value += bookmarked.value ? 1 : -1;
-    if (bookmarks.value < 0) bookmarks.value = 0;
-
-    try {
-        const csrfToken = (page.props as any).csrf_token || '';
-
-        const res = await fetch(`/posts/${props.post.id}/bookmark`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': csrfToken,
-                Accept: 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-            },
-            credentials: 'same-origin',
-            body: JSON.stringify({}),
-        });
-
-        if (!res.ok) throw res;
-
-        const data = await res.json();
-        if (data.bookmarked !== undefined) bookmarked.value = data.bookmarked;
-        if (data.bookmarks_count !== undefined)
-            bookmarks.value = data.bookmarks_count;
-    } catch (err) {
-        bookmarked.value = prevBookmarked;
-        bookmarks.value = prevBookmarks;
-        console.error('Error toggling bookmark', err);
-    }
+const getAvatarColor = (name: string) => {
+    if (!name) return '#6B7280';
+    const colors = [
+        '#EF4444',
+        '#F97316',
+        '#F59E0B',
+        '#EAB308',
+        '#84CC16',
+        '#22C55E',
+        '#10B981',
+        '#14B8A6',
+        '#06B6D4',
+        '#0EA5E9',
+        '#3B82F6',
+        '#6366F1',
+        '#8B5CF6',
+        '#A855F7',
+        '#D946EF',
+        '#EC4899',
+    ];
+    const hash = name
+        .split('')
+        .reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    return colors[hash % colors.length];
 };
+
+const getPreviewImages = () => {
+    if (props.post.images && props.post.images.length > 0)
+        return props.post.images;
+    if (props.post.image_url) return [props.post.image_url];
+    return [];
+};
+
+const getPreviewMedia = () => {
+    const p: any = props.post as any;
+    if (Array.isArray(p.media) && p.media.length > 0) {
+        return p.media
+            .filter(
+                (m: any) =>
+                    m &&
+                    (m.type === 'image' || m.type === 'video') &&
+                    typeof m.src === 'string' &&
+                    m.src.length > 0,
+            )
+            .map((m: any) => ({ type: m.type, src: m.src }));
+    }
+
+    const media: Array<{ type: 'image' | 'video'; src: string }> = [];
+    getPreviewImages().forEach((src) => media.push({ type: 'image', src }));
+    (props.post.videos || []).forEach((src) =>
+        media.push({ type: 'video', src }),
+    );
+    return media;
+};
+
+const previewMediaList = computed(() => getPreviewMedia());
 
 // Open media preview
 const openMediaPreview = (index: number, type: 'image' | 'video') => {
-    // Combine images and videos in order
-    const media: Array<{ type: 'image' | 'video'; src: string }> = [];
-    
-    // Add all images first
-    (props.post.images || []).forEach(src => {
-        media.push({ type: 'image', src });
-    });
-    
-    // Then add all videos
-    (props.post.videos || []).forEach(src => {
-        media.push({ type: 'video', src });
-    });
-    
-    previewMedia.value = media;
+    // `type` kept for compatibility with existing call sites.
+    void type;
+    previewMedia.value = getPreviewMedia();
     currentMediaIndex.value = index;
     showMediaPreview.value = true;
 };
@@ -166,528 +174,820 @@ const closeMediaPreview = () => {
     showMediaPreview.value = false;
 };
 
-// Keyboard navigation
-const handleKeydown = (e: KeyboardEvent) => {
-    if (!showMediaPreview.value) return;
-
-    if (e.key === 'ArrowRight') nextMedia();
-    if (e.key === 'ArrowLeft') prevMedia();
-    if (e.key === 'Escape') closeMediaPreview();
+// Update media index
+const updateMediaIndex = (index: number) => {
+    currentMediaIndex.value = index;
 };
 
 const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
-    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 
-    if (diffInHours < 1) {
-        const diffInMinutes = Math.floor(diffInHours * 60);
-        return `${diffInMinutes}m`;
-    } else if (diffInHours < 24) {
-        return `${Math.floor(diffInHours)}h`;
-    } else {
-        const diffInDays = Math.floor(diffInHours / 24);
-        return `${diffInDays}d`;
+    if (diffInSeconds < 60) return `${diffInSeconds}s`;
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h`;
+    if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d`;
+
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
+
+const formatViews = (num: number) => {
+    if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
+    if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
+    return num.toString();
+};
+
+// FIXED: Added event parameter and stopPropagation
+const toggleLike = async (event: Event) => {
+    event.stopPropagation();
+    event.preventDefault();
+
+    const prevLiked = liked.value;
+    const prevLikes = likes.value;
+
+    // Optimistic update
+    liked.value = !prevLiked;
+    likes.value += liked.value ? 1 : -1;
+    if (likes.value < 0) likes.value = 0;
+
+    try {
+        const targetId =
+            props.post.type === 'repost' && props.post.post_id
+                ? props.post.post_id
+                : props.post.id;
+
+        console.log('🔄 Toggling like for post:', targetId);
+
+        const response = await window.axios.post(`/posts/${targetId}/like`);
+
+        console.log('✅ Like response:', response.data);
+
+        if (response.data.likes_count !== undefined) {
+            likes.value = response.data.likes_count;
+        }
+        if (response.data.liked !== undefined) {
+            liked.value = response.data.liked;
+        }
+    } catch (err: any) {
+        liked.value = prevLiked;
+        likes.value = prevLikes;
+        console.error(
+            '❌ Error toggling like:',
+            err.response?.data || err.message,
+        );
+        alert('Failed to toggle like. Please try again.');
+    }
+};
+
+// FIXED: Added event parameter and using axios
+const toggleBookmark = async (event: Event) => {
+    event.stopPropagation();
+    event.preventDefault();
+
+    const prevBookmarked = bookmarked.value;
+    const prevBookmarks = bookmarks.value;
+
+    bookmarked.value = !prevBookmarked;
+    bookmarks.value += bookmarked.value ? 1 : -1;
+    if (bookmarks.value < 0) bookmarks.value = 0;
+
+    try {
+        const targetId =
+            props.post.type === 'repost' && props.post.post_id
+                ? props.post.post_id
+                : props.post.id;
+
+        console.log('🔄 Toggling bookmark for post:', targetId);
+
+        const response = await window.axios.post(`/posts/${targetId}/bookmark`);
+
+        console.log('✅ Bookmark response:', response.data);
+
+        if (response.data.bookmarked !== undefined) {
+            bookmarked.value = response.data.bookmarked;
+        }
+        if (response.data.bookmarks_count !== undefined) {
+            bookmarks.value = response.data.bookmarks_count;
+        }
+    } catch (err: any) {
+        bookmarked.value = prevBookmarked;
+        bookmarks.value = prevBookmarks;
+        console.error(
+            '❌ Error toggling bookmark:',
+            err.response?.data || err.message,
+        );
+        alert('Failed to toggle bookmark. Please try again.');
+    }
+};
+
+const openRepostModal = (event: Event) => {
+    event.stopPropagation();
+    event.preventDefault();
+    showRepostModal.value = true;
+};
+
+const closeRepostModal = () => {
+    showRepostModal.value = false;
+};
+
+const handleRepostSubmitted = async () => {
+    await router.visit(window.location.href, {
+        method: 'get',
+        preserveState: false,
+    });
+};
+
+const openShareModal = (event: Event) => {
+    event.stopPropagation();
+    event.preventDefault();
+    showShareModal.value = true;
+};
+
+const closeShareModal = () => {
+    showShareModal.value = false;
+};
+
+const handlePostShared = () => {
+    console.log('Post shared successfully');
+};
+
+const deleteRepost = async () => {
+    if (props.post.type !== 'repost' || !props.post.repost_id) {
+        console.error(
+            'Cannot delete: not a repost or missing repost_id',
+            props.post,
+        );
+        return;
+    }
+    try {
+        await router.delete(`/reposts/${props.post.repost_id}`, {
+            preserveState: false,
+            onSuccess: () => {
+                console.log('Repost deleted successfully');
+            },
+            onError: (errors) => {
+                console.error('Delete failed:', errors);
+                alert('Failed to delete repost. Please try again.');
+            },
+        });
+    } catch (err) {
+        console.error('Error deleting repost:', err);
+        alert('Failed to delete repost. Please try again.');
     }
 };
 
 const isOwnPost = computed(() => props.currentUser.id === props.post.user.id);
 
-const deletePost = () => {
-    if (confirm('Are you sure you want to delete this post?')) {
-        emit('delete', props.post.id);
+const deletePost = (event: Event) => {
+    event.stopPropagation();
+    event.preventDefault();
+
+    if (props.post.type === 'repost') {
+        if (confirm('Are you sure you want to delete this repost?')) {
+            deleteRepost();
+        }
+    } else {
+        if (confirm('Are you sure you want to delete this post?')) {
+            emit('delete', props.post.id);
+        }
     }
 };
 
-const toggleCommentBox = () => {
-    showCommentBox.value = !showCommentBox.value;
-    commentError.value = null;
+const handleImageError = () => {
+    imageError.value = true;
 };
 
-const postComment = async () => {
-    commentError.value = null;
-    const content = (commentInput.value || '').trim();
-    if (!content) {
-        commentError.value = 'Comment cannot be empty';
-        return;
+const viewPostDetail = () => {
+    const postId =
+        props.post.type === 'repost' && props.post.post_id
+            ? props.post.post_id
+            : props.post.id;
+    router.visit(`/posts/${postId}`);
+};
+
+const openCommentModal = (event: Event) => {
+    event.stopPropagation();
+    event.preventDefault();
+    showCommentModal.value = true;
+};
+
+const closeCommentModal = () => {
+    showCommentModal.value = false;
+};
+
+const handleCommented = async () => {
+    try {
+        const targetId =
+            props.post.type === 'repost' && props.post.post_id
+                ? props.post.post_id
+                : props.post.id;
+        const res = await fetch(`/posts/${targetId}/comments/latest`, {
+            method: 'GET',
+            credentials: 'include',
+            headers: {
+                Accept: 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+        });
+
+        if (res.ok) {
+            const data = await res.json();
+            if (data?.comment) {
+                comments.value.unshift(data.comment);
+                (props.post as any).comments_count =
+                    ((props.post as any).comments_count || 0) + 1;
+                emit('commented', targetId, data.comment);
+            }
+        }
+    } catch (e) {
+        console.warn('Failed to fetch latest comment', e);
     }
-
-    posting.value = true;
-
-    const token =
-        document
-            .querySelector('meta[name="csrf-token"]')
-            ?.getAttribute('content') || '';
-
-    router.post(
-        `/posts/${props.post.id}/comments`,
-        { content, _token: token },
-        {
-            preserveState: true,
-            onSuccess: async () => {
-                commentInput.value = '';
-                showCommentBox.value = false;
-
-                try {
-                    const res = await fetch(
-                        `/posts/${props.post.id}/comments/latest`,
-                        {
-                            method: 'GET',
-                            credentials: 'include',
-                            headers: {
-                                Accept: 'application/json',
-                                'X-Requested-With': 'XMLHttpRequest',
-                            },
-                        },
-                    );
-
-                    if (res.ok) {
-                        const data = await res.json();
-                        if (data?.comment) {
-                            comments.value.unshift(data.comment);
-                        }
-                    }
-                } catch (e) {
-                    console.warn('Failed to fetch latest comment', e);
-                } finally {
-                    posting.value = false;
-                }
-            },
-            onError: (errors) => {
-                commentError.value =
-                    errors?.message || 'Failed to post comment';
-                posting.value = false;
-            },
-        },
-    );
-};
-
-const cancelComment = () => {
-    showCommentBox.value = false;
-    commentError.value = null;
-    posting.value = false;
 };
 </script>
 
 <template>
     <div
-        class="rounded-lg border border-gray-200 bg-white p-4 transition-colors hover:bg-gray-50"
-        @keydown="handleKeydown"
+        class="cursor-pointer border-b border-gray-200 p-4 transition-colors hover:bg-gray-50/50"
     >
-        <!-- User Header -->
-        <div class="mb-3 flex items-start justify-between">
-            <div class="flex items-start space-x-3">
-                <Link
-                    :href="`/${post.user.name}`"
-                    class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-blue-500 text-sm font-medium text-white transition-colors hover:bg-blue-600"
-                >
-                    {{ post.user.name.charAt(0).toUpperCase() }}
-                </Link>
-                <div class="min-w-0 flex-1">
-                    <div class="flex items-center space-x-2">
+        <!-- Post Header -->
+        <div class="flex items-start gap-3">
+            <!-- Avatar -->
+            <Link
+                :href="`/${post.user.name}`"
+                @click.stop
+                class="-mt-0.5 flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full text-sm font-medium text-white transition-opacity hover:opacity-90"
+                :style="{ backgroundColor: getAvatarColor(post.user.name) }"
+            >
+                {{ getInitials(post.user.name) }}
+            </Link>
+
+            <!-- Post Content -->
+            <div class="min-w-0 flex-1">
+                <!-- User Info & Actions -->
+                <div class="mb-1 flex items-start justify-between">
+                    <div class="-mt-0.2 flex min-w-0 flex-1 items-center gap-1">
                         <Link
                             :href="`/${post.user.name}`"
-                            class="truncate font-semibold text-gray-900 hover:underline"
-                            >{{ post.user.name }}</Link
+                            @click.stop
+                            class="truncate text-[15px] font-bold text-gray-900 hover:underline"
                         >
+                            {{ post.user.name }}
+                        </Link>
                         <Link
                             :href="`/${post.user.name}`"
-                            class="text-sm text-gray-500 hover:underline"
-                            >@{{ post.user.name }}</Link
+                            @click.stop
+                            class="truncate text-[15px] text-gray-500 hover:underline"
                         >
-                        <span class="text-gray-400">·</span>
-                        <span class="text-sm text-gray-500">{{
-                            formatDate(post.created_at)
-                        }}</span>
+                            @{{ post.user.name.toLowerCase() }}
+                        </Link>
+                        <span class="text-[15px] text-gray-500">·</span>
+                        <span
+                            class="text-[15px] whitespace-nowrap text-gray-500"
+                            >{{ formatDate(post.created_at) }}</span
+                        >
                     </div>
-                </div>
-            </div>
-
-            <!-- Delete Button -->
-            <button
-                v-if="isOwnPost"
-                @click="deletePost"
-                class="rounded-full p-1 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-500"
-            >
-                <svg
-                    class="h-4 w-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                >
-                    <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                    ></path>
-                </svg>
-            </button>
-        </div>
-
-        <!-- Comment Box -->
-        <div v-if="showCommentBox" class="mt-3">
-            <textarea
-                v-model="commentInput"
-                rows="3"
-                class="w-full rounded-md border border-gray-200 bg-white p-2 text-black focus:ring-2 focus:ring-blue-200 focus:outline-none"
-                placeholder="Write a comment..."
-            ></textarea>
-
-            <div class="mt-2 flex items-center space-x-2">
-                <button
-                    @click="postComment"
-                    :disabled="posting"
-                    class="rounded-md bg-blue-600 px-3 py-1 text-white hover:bg-blue-700 disabled:opacity-50"
-                >
-                    <span v-if="!posting">Post</span>
-                    <span v-else>Posting...</span>
-                </button>
-
-                <button
-                    @click="cancelComment"
-                    class="rounded-md border border-gray-200 px-3 py-1 text-gray-700 hover:bg-gray-50"
-                >
-                    Cancel
-                </button>
-            </div>
-
-            <p v-if="commentError" class="mt-2 text-sm text-red-500">
-                {{ commentError }}
-            </p>
-        </div>
-
-        <!-- Post Content -->
-        <div class="mb-3">
-            <p class="leading-relaxed whitespace-pre-wrap text-gray-900">
-                {{ post.content }}
-            </p>
-
-            <!-- Combined Media (Images + Videos) -->
-            <div
-                v-if="
-                    (post.images && post.images.length > 0) ||
-                    (post.videos && post.videos.length > 0)
-                "
-                class="mt-3 grid gap-2"
-                :class="{
-                    'grid-cols-1':
-                        (post.images?.length || 0) +
-                            (post.videos?.length || 0) ===
-                        1,
-                    'grid-cols-2':
-                        (post.images?.length || 0) +
-                            (post.videos?.length || 0) >
-                        1,
-                }"
-            >
-                <!-- Images with click handler -->
-                <img
-                    v-for="(image, index) in post.images || []"
-                    :key="'img-' + index"
-                    :src="image"
-                    :alt="`Post image ${index + 1}`"
-                    :class="[
-                        'cursor-pointer rounded-lg object-cover transition-opacity hover:opacity-90',
-                        (post.images?.length || 0) +
-                            (post.videos?.length || 0) ===
-                        1
-                            ? 'max-h-96 max-w-96 object-contain'
-                            : 'h-64 w-full object-cover',
-                    ]"
-                    @click="openMediaPreview(index, 'image')"
-                    @error="
-                        (e) =>
-                            ((e.target as HTMLImageElement).style.display =
-                                'none')
-                    "
-                />
-
-                <!-- Videos -->
-                <div
-                    v-for="(video, index) in post.videos || []"
-                    :key="'vid-' + index"
-                    class="relative cursor-pointer"
-                    @click="openMediaPreview((post.images?.length || 0) + index, 'video')"
-                >
-                    <video
-                        :src="video"
-                        :class="[
-                            'rounded-lg object-cover',
-                            (post.images?.length || 0) +
-                                (post.videos?.length || 0) ===
-                            1
-                                ? 'max-h-96 w-full object-contain'
-                                : 'h-64 w-full object-cover',
-                        ]"
-                    ></video>
-                    <div class="absolute inset-0 flex items-center justify-center">
-                        <div class="rounded-full bg-black bg-opacity-50 p-3">
-                            <svg class="h-8 w-8 text-white" fill="currentColor" viewBox="0 0 24 24">
-                                <path d="M8 5v14l11-7z"/>
+                    <!-- More Options Button -->
+                    <div v-if="isOwnPost" class="relative">
+                        <button
+                            @click.stop="showDropdown = !showDropdown"
+                            class="ml-2 flex-shrink-0 rounded-full p-1.5 text-gray-500 transition-colors hover:bg-blue-50 hover:text-blue-500"
+                        >
+                            <svg
+                                class="h-[18px] w-[18px]"
+                                fill="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"
+                                />
                             </svg>
+                        </button>
+
+                        <!-- Dropdown Menu -->
+                        <div
+                            v-if="showDropdown"
+                            @click.stop
+                            class="absolute right-0 z-10 mt-1 w-48 rounded-xl border border-gray-200 bg-white py-2 shadow-lg"
+                        >
+                            <button
+                                @click="
+                                    deletePost($event);
+                                    showDropdown = false;
+                                "
+                                class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-red-600 transition-colors hover:bg-gray-100"
+                            >
+                                <svg
+                                    class="h-4 w-4"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                    />
+                                </svg>
+                                Delete
+                            </button>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Comments preview -->
-            <div v-if="comments && comments.length" class="mt-3 space-y-3">
-                <div
-                    v-for="comment in comments"
-                    :key="comment.id"
-                    class="flex items-start space-x-3"
-                >
+                <!-- Post Text Content -->
+                <div @click="viewPostDetail" class="mt-1 mb-3">
+                    <!-- Repost Indicator -->
                     <div
-                        class="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 text-xs font-medium text-gray-700"
+                        v-if="post.type === 'repost'"
+                        class="mb-2 flex items-center gap-2 text-[13px] text-gray-500"
                     >
-                        {{
-                            (comment.user?.name || 'U').charAt(0).toUpperCase()
-                        }}
+                        <svg
+                            class="h-4 w-4"
+                            fill="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                d="M4.5 3.88l4.432 4.14-1.364 1.46L5.5 7.55V16c0 1.1.896 2 2 2H13v2H7.5c-2.209 0-4-1.79-4-4V7.55L1.432 9.48.068 8.02 4.5 3.88zM16.5 6H11V4h5.5c2.209 0 4 1.79 4 4v8.45l2.068-1.93 1.364 1.46-4.432 4.14-4.432-4.14 1.364-1.46 2.068 1.93V8c0-1.1-.896-2-2-2z"
+                            />
+                        </svg>
+                        <span>{{ post.user.name }} reposted</span>
                     </div>
-                    <div class="flex-1">
-                        <div class="text-sm">
-                            <span class="mr-2 font-semibold text-gray-800">{{
-                                comment.user?.name || 'Unknown'
+
+                    <!-- Original Post (if repost) -->
+                    <div
+                        v-if="post.type === 'repost'"
+                        class="mb-3 rounded-2xl border border-gray-200 p-3"
+                    >
+                        <!-- Original User Info -->
+                        <div class="mb-2 flex items-center gap-2">
+                            <div
+                                class="flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-medium text-white"
+                                :style="{
+                                    backgroundColor: getAvatarColor(
+                                        post.original_post_user?.name || '',
+                                    ),
+                                }"
+                            >
+                                {{
+                                    getInitials(
+                                        post.original_post_user?.name || '',
+                                    )
+                                }}
+                            </div>
+                            <span class="text-[15px] font-bold text-gray-900">{{
+                                post.original_post_user?.name
                             }}</span>
-                            <span class="text-xs text-gray-500"
-                                >· {{ formatDate(comment.created_at) }}</span
+                            <span class="text-[15px] text-gray-500"
+                                >@{{
+                                    post.original_post_user?.name.toLowerCase()
+                                }}</span
                             >
                         </div>
-                        <div class="text-sm text-gray-800">
-                            {{ comment.content }}
+
+                        <!-- Original Content -->
+                        <!-- Post Content -->
+                        <div class="mb-3">
+                            <p
+                                class="leading-relaxed whitespace-pre-wrap text-gray-900"
+                            >
+                                {{ post.content }}
+                            </p>
+
+                            <!-- Combined Media (Images + Videos) -->
+                            <div
+                                v-if="previewMediaList.length > 0"
+                                class="mt-3 grid gap-2"
+                                :class="{
+                                    'grid-cols-1':
+                                        previewMediaList.length === 1,
+                                    'grid-cols-2': previewMediaList.length > 1,
+                                }"
+                            >
+                                <template
+                                    v-for="(
+                                        item, index
+                                    ) in previewMediaList.slice(0, 4)"
+                                    :key="
+                                        item.type + '-' + item.src + '-' + index
+                                    "
+                                >
+                                    <img
+                                        v-if="item.type === 'image'"
+                                        :src="item.src"
+                                        :alt="`Post media ${index + 1}`"
+                                        :class="[
+                                            'cursor-pointer rounded-lg object-cover transition-opacity hover:opacity-90',
+                                            previewMediaList.length === 1
+                                                ? 'max-h-96 max-w-96 object-contain'
+                                                : 'h-64 w-full object-cover',
+                                        ]"
+                                        @click.stop="
+                                            openMediaPreview(index, 'image')
+                                        "
+                                        @error="
+                                            (e) =>
+                                                ((
+                                                    e.target as HTMLImageElement
+                                                ).style.display = 'none')
+                                        "
+                                    />
+
+                                    <div
+                                        v-else
+                                        :class="[
+                                            'relative cursor-pointer overflow-hidden rounded-lg bg-black',
+                                            previewMediaList.length === 1
+                                                ? 'max-h-96'
+                                                : 'h-64',
+                                        ]"
+                                        @click.stop="
+                                            openMediaPreview(index, 'video')
+                                        "
+                                    >
+                                        <video
+                                            :src="item.src"
+                                            preload="metadata"
+                                            muted
+                                            playsinline
+                                            class="h-full w-full object-cover"
+                                        ></video>
+                                        <div
+                                            class="pointer-events-none absolute inset-0 flex items-center justify-center"
+                                        >
+                                            <div
+                                                class="bg-opacity-50 rounded-full bg-black p-3"
+                                            >
+                                                <svg
+                                                    class="h-8 w-8 text-white"
+                                                    fill="currentColor"
+                                                    viewBox="0 0 24 24"
+                                                >
+                                                    <path d="M8 5v14l11-7z" />
+                                                </svg>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Repost Caption -->
+                    <p
+                        v-if="post.type === 'repost' && post.repost_caption"
+                        class="mb-3 text-[15px] whitespace-pre-wrap text-gray-900"
+                    >
+                        {{ post.repost_caption }}
+                    </p>
+
+                    <!-- Repost Images -->
+                    <div
+                        v-if="
+                            post.type === 'repost' &&
+                            post.repost_images &&
+                            post.repost_images.length > 0
+                        "
+                        :class="[
+                            'mb-3 gap-0.5 overflow-hidden rounded-2xl',
+                            post.repost_images.length === 1
+                                ? 'grid grid-cols-1'
+                                : 'grid grid-cols-2',
+                        ]"
+                    >
+                        <img
+                            v-for="(image, index) in post.repost_images.slice(
+                                0,
+                                4,
+                            )"
+                            :key="index"
+                            :src="image"
+                            :alt="`Repost Image ${index + 1}`"
+                            :class="[
+                                'w-full object-cover',
+                                post.repost_images.length === 1
+                                    ? 'max-h-[500px]'
+                                    : 'h-[280px]',
+                            ]"
+                        />
+                    </div>
+
+                    <!-- Regular Post Content -->
+                    <div v-if="post.type !== 'repost'">
+                        <p
+                            v-if="post.content"
+                            class="-mt-1.5 mb-3 text-[15px] whitespace-pre-wrap text-gray-900"
+                        >
+                            {{ post.content }}
+                        </p>
+
+                        <!-- Media (ordered: image + video) -->
+                        <div
+                            v-if="previewMediaList.length > 0"
+                            :class="[
+                                'gap-0.5 overflow-hidden rounded-2xl border border-gray-200',
+                                previewMediaList.length === 1
+                                    ? 'grid grid-cols-1'
+                                    : 'grid grid-cols-2',
+                            ]"
+                        >
+                            <template
+                                v-for="(item, index) in previewMediaList.slice(
+                                    0,
+                                    4,
+                                )"
+                                :key="item.type + '-' + item.src + '-' + index"
+                            >
+                                <img
+                                    v-if="item.type === 'image'"
+                                    :src="item.src"
+                                    :alt="`Media ${index + 1}`"
+                                    :class="[
+                                        'w-full cursor-pointer object-cover transition-opacity hover:opacity-95',
+                                        previewMediaList.length === 1
+                                            ? 'max-h-[500px]'
+                                            : 'h-[280px]',
+                                    ]"
+                                    @click.stop="
+                                        openMediaPreview(index, 'image')
+                                    "
+                                />
+
+                                <div
+                                    v-else
+                                    :class="[
+                                        'relative cursor-pointer overflow-hidden bg-black',
+                                        previewMediaList.length === 1
+                                            ? 'max-h-[500px]'
+                                            : 'h-[280px]',
+                                    ]"
+                                    @click.stop="
+                                        openMediaPreview(index, 'video')
+                                    "
+                                >
+                                    <video
+                                        :src="item.src"
+                                        preload="metadata"
+                                        muted
+                                        playsinline
+                                        class="h-full w-full object-cover"
+                                    ></video>
+                                    <div
+                                        class="pointer-events-none absolute inset-0 flex items-center justify-center"
+                                    >
+                                        <div
+                                            class="bg-opacity-50 rounded-full bg-black p-3"
+                                        >
+                                            <svg
+                                                class="h-8 w-8 text-white"
+                                                fill="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <path d="M8 5v14l11-7z" />
+                                            </svg>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+
+                        <!-- Single Image URL Fallback -->
+                        <div
+                            v-if="
+                                post.image_url &&
+                                !imageError &&
+                                previewMediaList.length === 0 &&
+                                (!post.images || post.images.length === 0)
+                            "
+                        >
+                            <img
+                                :src="post.image_url"
+                                :alt="`Post image`"
+                                class="max-h-[500px] w-full cursor-pointer rounded-2xl border border-gray-200 object-cover transition-opacity hover:opacity-95"
+                                @error="handleImageError"
+                                @click.stop="openMediaPreview(0, 'image')"
+                            />
                         </div>
                     </div>
                 </div>
+
+                <!-- Action Buttons -->
+                <div
+                    class="mt-3 flex max-w-[425px] items-center justify-between"
+                >
+                    <!-- Reply -->
+                    <button
+                        @click="openCommentModal"
+                        class="group flex items-center gap-2 text-gray-500 transition-colors hover:text-blue-500"
+                    >
+                        <div
+                            class="rounded-full p-2 transition-colors group-hover:bg-blue-50"
+                        >
+                            <svg
+                                class="h-[18px] w-[18px]"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4.92-1.314L3 20l1.314-4.08A8 8 0 013 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                                />
+                            </svg>
+                        </div>
+                        <span v-if="commentsCount > 0" class="text-[13px]">{{
+                            commentsCount
+                        }}</span>
+                    </button>
+
+                    <!-- Repost -->
+                    <button
+                        @click="openRepostModal"
+                        :class="[
+                            'group flex items-center gap-2 transition-colors',
+                            reposted
+                                ? 'text-green-600'
+                                : 'text-gray-500 hover:text-green-600',
+                        ]"
+                        :disabled="repostLoading"
+                    >
+                        <div
+                            class="rounded-full p-2 transition-colors group-hover:bg-green-50"
+                        >
+                            <svg
+                                class="h-[18px] w-[18px]"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                                />
+                            </svg>
+                        </div>
+                        <span v-if="reposts > 0" class="text-[13px]">{{
+                            reposts
+                        }}</span>
+                    </button>
+
+                    <!-- Like -->
+                    <button
+                        @click="toggleLike"
+                        :class="[
+                            'group flex items-center gap-2 transition-colors',
+                            liked
+                                ? 'text-pink-600'
+                                : 'text-gray-500 hover:text-pink-600',
+                        ]"
+                    >
+                        <div
+                            class="rounded-full p-2 transition-colors group-hover:bg-pink-50"
+                        >
+                            <svg
+                                class="h-[18px] w-[18px]"
+                                :fill="liked ? 'currentColor' : 'none'"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                                />
+                            </svg>
+                        </div>
+                        <span v-if="likes > 0" class="text-[13px]">{{
+                            likes
+                        }}</span>
+                    </button>
+
+                    <!-- Views/Analytics -->
+                    <button
+                        @click.stop
+                        class="group flex items-center gap-2 text-gray-500 transition-colors hover:text-blue-500"
+                    >
+                        <div
+                            class="rounded-full p-2 transition-colors group-hover:bg-blue-50"
+                        >
+                            <svg
+                                class="h-[18px] w-[18px]"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                                />
+                            </svg>
+                        </div>
+                        <span class="text-[13px]">{{ formatViews(0) }}</span>
+                    </button>
+
+                    <!-- Bookmark & Share -->
+
+                    <!-- Bookmark -->
+                    <button
+                        @click="toggleBookmark"
+                        :class="[
+                            'group rounded-full p-2 transition-colors',
+                            bookmarked
+                                ? 'text-blue-500'
+                                : 'text-gray-500 hover:text-blue-500',
+                        ]"
+                    >
+                        <div
+                            class="rounded-full p-0 transition-colors group-hover:bg-blue-50"
+                        >
+                            <svg
+                                class="h-[18px] w-[18px]"
+                                :fill="bookmarked ? 'currentColor' : 'none'"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
+                                />
+                            </svg>
+                        </div>
+                    </button>
+
+                    <!-- Share -->
+                    <button
+                        @click="openShareModal"
+                        class="group rounded-full p-2 text-gray-500 transition-colors hover:text-blue-500"
+                    >
+                        <div
+                            class="rounded-full p-0 transition-colors group-hover:bg-blue-50"
+                        >
+                            <svg
+                                class="h-[18px] w-[18px]"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+                                />
+                            </svg>
+                        </div>
+                    </button>
+                </div>
             </div>
         </div>
-
-        <!-- Action Buttons -->
-        <div class="flex items-center space-x-6 text-gray-500">
-            <!-- Reply -->
-            <button
-                class="group flex items-center space-x-2 transition-colors hover:text-blue-500"
-            >
-                <div
-                    class="rounded-full p-2 transition-colors group-hover:bg-blue-50"
-                >
-                    <svg
-                        class="h-4 w-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                    >
-                        <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
-                        ></path>
-                    </svg>
-                </div>
-                <span class="text-sm">{{ repliesCount || '' }}</span>
-            </button>
-
-            <!-- Comment -->
-            <button
-                @click="toggleCommentBox"
-                class="group flex items-center space-x-2 transition-colors hover:text-blue-500"
-            >
-                <div
-                    class="rounded-full p-2 transition-colors group-hover:bg-blue-50"
-                >
-                    <svg
-                        class="h-4 w-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                    >
-                        <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4-.8L3 20l1.2-3.8A7.966 7.966 0 013 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                        ></path>
-                    </svg>
-                </div>
-                <span class="text-sm">{{ comments.length || '' }}</span>
-            </button>
-
-            <!-- Like -->
-            <button
-                @click.prevent="toggleLike"
-                :class="[
-                    'flex items-center space-x-2 rounded px-2 py-1 transition-colors',
-                    liked
-                        ? 'bg-red-50 text-red-500'
-                        : 'text-gray-500 hover:bg-gray-100',
-                ]"
-                aria-label="Like"
-            >
-                <svg
-                    class="h-4 w-4"
-                    :fill="liked ? 'currentColor' : 'none'"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                >
-                    <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-                    ></path>
-                </svg>
-                <span class="text-sm">{{ likes }}</span>
-            </button>
-
-            <!-- Bookmark -->
-            <button
-                @click.prevent="toggleBookmark"
-                :class="[
-                    'flex items-center space-x-2 rounded px-2 py-1 transition-colors',
-                    bookmarked
-                        ? 'bg-yellow-50 text-yellow-500'
-                        : 'text-gray-500 hover:bg-gray-100',
-                ]"
-                aria-label="Bookmark"
-            >
-                <svg
-                    class="h-4 w-4"
-                    :fill="bookmarked ? 'currentColor' : 'none'"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                >
-                    <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M5 5a2 2 0 012-2h6a2 2 0 012 2v16l-7-3.5L5 21V5z"
-                    ></path>
-                </svg>
-                <span class="text-sm">{{ bookmarks }}</span>
-            </button>
-
-            <!-- Share -->
-            <button
-                class="group flex items-center space-x-2 transition-colors hover:text-green-500"
-            >
-                <div
-                    class="rounded-full p-2 transition-colors group-hover:bg-green-50"
-                >
-                    <svg
-                        class="h-4 w-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                    >
-                        <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z"
-                        ></path>
-                    </svg>
-                </div>
-            </button>
-        </div>
-
-        <!-- Media Preview Modal (Images + Videos) -->
-        <Teleport to="body">
-            <div
-                v-if="showMediaPreview"
-                class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-90"
-                @click="closeMediaPreview"
-            >
-                <!-- Close Button -->
-                <button
-                    @click="closeMediaPreview"
-                    class="absolute right-4 top-4 rounded-full bg-black bg-opacity-50 p-2 text-white shadow-lg transition-all hover:bg-opacity-70"
-                >
-                    <svg
-                        class="h-6 w-6"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                    >
-                        <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="3"
-                            d="M6 18L18 6M6 6l12 12"
-                        ></path>
-                    </svg>
-                </button>
-
-                <!-- Previous Button -->
-                <button
-                    v-if="currentMediaIndex > 0"
-                    @click.stop="prevMedia"
-                    class="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-black bg-opacity-50 p-3 text-white shadow-lg transition-all hover:bg-opacity-70"
-                >
-                    <svg
-                        class="h-6 w-6"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                    >
-                        <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="3"
-                            d="M15 19l-7-7 7-7"
-                        ></path>
-                    </svg>
-                </button>
-
-                <!-- Media Content (Image or Video) -->
-                <div @click.stop>
-                    <!-- Image -->
-                    <img
-                        v-if="previewMedia[currentMediaIndex]?.type === 'image'"
-                        :src="previewMedia[currentMediaIndex].src"
-                        :alt="`Media ${currentMediaIndex + 1}`"
-                        class="max-h-[90vh] max-w-[90vw] object-contain"
-                    />
-                    
-                    <!-- Video -->
-                    <video
-                        v-else-if="previewMedia[currentMediaIndex]?.type === 'video'"
-                        :src="previewMedia[currentMediaIndex].src"
-                        controls
-                        autoplay
-                        class="max-h-[90vh] max-w-[90vw]"
-                    ></video>
-                </div>
-
-                <!-- Next Button -->
-                <button
-                    v-if="currentMediaIndex < previewMedia.length - 1"
-                    @click.stop="nextMedia"
-                    class="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-black bg-opacity-50 p-3 text-white shadow-lg transition-all hover:bg-opacity-70"
-                >
-                    <svg
-                        class="h-6 w-6"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                    >
-                        <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="3"
-                            d="M9 5l7 7-7 7"
-                        ></path>
-                    </svg>
-                </button>
-
-                <!-- Media Counter with Type -->
-                <div
-                    class="absolute bottom-4 left-1/2 -translate-x-1/2 transform rounded-full bg-black bg-opacity-50 px-4 py-2 text-white"
-                >
-                    <span class="capitalize">{{ previewMedia[currentMediaIndex]?.type }}</span>
-                    {{ currentMediaIndex + 1 }} / {{ previewMedia.length }}
-                </div>
-            </div>
-        </Teleport>
     </div>
+
+    <!-- Media Preview Modal -->
+    <MediaPreviewModal
+        :is-open="showMediaPreview"
+        :media="previewMedia"
+        :current-index="currentMediaIndex"
+        @close="closeMediaPreview"
+        @update-index="updateMediaIndex"
+    />
+
+    <!-- Modals -->
+    <RepostModal
+        v-if="showRepostModal"
+        :post="post"
+        :target-post-id="
+            post.type === 'repost' && post.post_id ? post.post_id : post.id
+        "
+        @close="closeRepostModal"
+        @submitted="handleRepostSubmitted"
+    />
+
+    <ShareModal
+        :is-open="showShareModal"
+        :post="post"
+        @close="closeShareModal"
+        @shared="handlePostShared"
+    />
+
+    <CommentModal
+        :isOpen="showCommentModal"
+        :postId="
+            props.post.type === 'repost' && props.post.post_id
+                ? props.post.post_id
+                : props.post.id
+        "
+        :user="props.currentUser"
+        @close="closeCommentModal"
+        @commented="handleCommented"
+    />
 </template>

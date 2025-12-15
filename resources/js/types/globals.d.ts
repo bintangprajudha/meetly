@@ -1,4 +1,5 @@
 import { AppPageProps } from '@/types/index';
+import { AxiosInstance } from 'axios';
 
 // Extend ImportMeta interface for Vite...
 declare module 'vite/client' {
@@ -35,6 +36,7 @@ export {};
 
 declare global {
   interface Window {
+    axios: AxiosInstance;
     Echo: any;
   }
 }

@@ -7,12 +7,19 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\FollowController;
+use App\Http\Controllers\RepostController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\MessageController;
 
 Route::get('/', function () {
     return Inertia::render('Home');
 })->name('home');
+
+Route::get('/csrf-token', function () {
+    return response()->json([
+        'csrf_token' => csrf_token()
+    ]);
+})->middleware('web');
 
 // Guest routes (only accessible when not logged in)
 Route::middleware(['guest'])->group(function () {
@@ -26,11 +33,22 @@ Route::middleware(['guest'])->group(function () {
 });
 
 // Authenticated routes (only accessible when logged in)
-Route::middleware(['web', 'auth'])->group(function () {
+Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard', function () {
+        $userId = Auth::id();
+        
         $posts = \App\Models\Post::with('user')
+            ->withCount(['likes', 'bookmarks', 'comments'])
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->get()
+            ->map(function ($post) use ($userId) {
+                $post->liked = $post->likes()->where('user_id', $userId)->exists();
+                $post->bookmarked = $post->bookmarks()->where('user_id', $userId)->exists();
+                $post->replies_count = $post->comments_count;
+                // Load empty comments array so count shows
+                $post->comments = [];
+                return $post;
+            });
 
         return Inertia::render('Dashboard', [
             'user' => Auth::user(),
@@ -56,14 +74,26 @@ Route::middleware(['web', 'auth'])->group(function () {
     Route::post('/posts/{post}/like', [PostController::class, 'toggleLike'])->name('posts.like');
     // Toggle bookmark
     Route::post('/posts/{post}/bookmark', [PostController::class, 'toggleBookmark'])->name('posts.bookmark');
+    Route::get('/bookmarks', [PostController::class, 'bookmarks'])->name('bookmarks.index');
 
-    // Inertia page
-    Route::get('/chat/{user}', [MessageController::class, 'index'])->name('messages.index');
+    // Repost routes
+    Route::post('/posts/{post}/repost', [RepostController::class, 'store'])->name('posts.repost');
+    Route::delete('/reposts/{repost}', [RepostController::class, 'destroy'])->name('reposts.destroy');
+    Route::get('/posts/{post}/reposts', [RepostController::class, 'getReposts'])->name('posts.reposts');
+    Route::get('/posts/{post}/has-reposted', [RepostController::class, 'hasUserReposted'])->name('posts.has-reposted');
+    Route::get('/chat/{user?}', [MessageController::class, 'index'])->name('messages.index');
 
     // "API" untuk frontend (session auth)
     Route::get('/api/messages', [MessageController::class, 'list'])->name('messages.list');
     Route::get('/api/messages/{user}', [MessageController::class, 'fetch'])->name('messages.fetch');
     Route::post('/api/messages', [MessageController::class, 'send'])->name('messages.send');
+    Route::delete('/api/messages/{message}', [MessageController::class, 'destroy'])->name('messages.destroy');
+    Route::post('/api/messages/{user}/read', [MessageController::class, 'markAsRead'])->name('messages.read');
+    Route::post('/api/messages/upload', [MessageController::class, 'uploadImage'])->name('messages.upload');
+    Route::get('/api/chat/users', [MessageController::class, 'users'])->name('messages.users');
+    Route::post('/api/posts/share', [MessageController::class, 'sharePost'])->name('posts.share');
+
+    Route::get('/api/users', [UserController::class, 'apiIndex'])->name('users.api.index');
 
 });
 
@@ -74,4 +104,3 @@ Route::get('/users/{user}/following', [FollowController::class, 'following'])->n
 Route::get('/{username}', [UserController::class, 'show'])
     ->name('user.profile')
     ->where('username', '[A-Za-z0-9_]+'); // Only allow alphanumeric and underscore
-

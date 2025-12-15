@@ -3,105 +3,164 @@
 namespace App\Http\Controllers;
 
 use App\Models\Post;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Validation\ValidationException;
+use App\Models\Repost;
 use Inertia\Inertia;
+use Illuminate\Http\Request;
+use App\Http\Requests\PostController\StoreRequest;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 
+/**
+ * Class PostController
+ *
+ * Controller responsible for:
+ * - Fetching main feed (posts + reposts)
+ * - Storing posts
+ * - Toggling likes & bookmarks
+ * - Showing post detail
+ * - Listing liked & bookmarked posts
+ */
 class PostController extends Controller
 {
+    /**
+     * Display full feed (posts + reposts combined by date).
+     */
     public function index()
     {
         $userId = Auth::id();
 
-        $posts = Post::with('user')
-            ->withCount('likes')
-            ->withCount('bookmarks')
-            ->orderBy('created_at', 'desc')
-            ->get()
-            ->map(function ($post) use ($userId) {
-                $post->liked = $userId ? $post->likes()->where('user_id', $userId)->exists() : false;
-                $post->bookmarked = $userId ? $post->bookmarks()->where('user_id', $userId)->exists() : false;
-                $post->likes_count = $post->likes_count ?? $post->likes()->count();
-                $post->bookmarks_count = $post->bookmarks_count ?? $post->bookmarks()->count();
-                return $post;
-            });
+        $posts   = $this->getFormattedPosts($userId);
+        $reposts = $this->getFormattedReposts($userId);
+
+        $feed = $posts->merge($reposts)
+            ->sortByDesc(fn($item) => strtotime($item->created_at))
+            ->values();
 
         return Inertia::render('Dashboard', [
-            'user' => Auth::user(),
-            'posts' => $posts,
+            'user'  => Auth::user(),
+            'posts' => $feed,
         ]);
     }
 
-    // Toggle like for current user — returns JSON with updated counts and status
+    /**
+     * Toggle like for a post.
+     */
     public function toggleLike(Post $post)
     {
-        $userId = Auth::id();
-        if (! $userId) {
-            return response()->json(['message' => 'Unauthorized'], 401);
+        try {
+            $userId = Auth::id();
+
+            if (!$userId) {
+                Log::warning('Unauthorized like attempt', ['post_id' => $post->id]);
+                return response()->json(['error' => 'Unauthorized'], 401);
+            }
+
+            Log::info('toggleLike triggered', [
+                'user_id' => $userId,
+                'post_id' => $post->id,
+                'csrf_token' => request()->header('X-CSRF-TOKEN') ? 'present' : 'missing'
+            ]);
+
+            // Toggle like
+            $exists = $post->likes()->where('user_id', $userId)->exists();
+
+            if ($exists) {
+                $post->likes()->detach($userId);
+                $liked = false;
+            } else {
+                $post->likes()->attach($userId);
+                $liked = true;
+            }
+
+            // Get fresh count
+            $likesCount = $post->likes()->count();
+
+            Log::info('toggleLike success', [
+                'liked' => $liked,
+                'likes_count' => $likesCount
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'liked' => $liked,
+                'likes_count' => $likesCount,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('toggleLike failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to toggle like',
+                'message' => $e->getMessage()
+            ], 500);
         }
-
-        Log::info('toggleLike called', ['post_id' => $post->id, 'user_id' => $userId]);
-
-        $exists = $post->likes()->where('user_id', $userId)->exists();
-
-        if ($exists) {
-            $post->likes()->detach($userId);
-            $liked = false;
-        } else {
-            $post->likes()->attach($userId);
-            $liked = true;
-        }
-
-        $likesCount = $post->likes()->count();
-        $post->likes_count = $likesCount;
-        $post->saveQuietly();
-
-        return response()->json([
-            'liked' => $liked,
-            'likes_count' => $likesCount,
-        ]);
     }
 
-    // Toggle bookmark for current user — returns JSON with updated status
+    /**
+     * Toggle bookmark for a post.
+     */
     public function toggleBookmark(Post $post)
     {
-        $userId = Auth::id();
-        if (! $userId) {
-            return response()->json(['message' => 'Unauthorized'], 401);
+        try {
+            $userId = Auth::id();
+
+            if (!$userId) {
+                Log::warning('Unauthorized bookmark attempt', ['post_id' => $post->id]);
+                return response()->json(['error' => 'Unauthorized'], 401);
+            }
+
+            Log::info('toggleBookmark triggered', [
+                'user_id' => $userId,
+                'post_id' => $post->id,
+                'csrf_token' => request()->header('X-CSRF-TOKEN') ? 'present' : 'missing'
+            ]);
+
+            // Toggle bookmark
+            $exists = $post->bookmarks()->where('user_id', $userId)->exists();
+
+            if ($exists) {
+                $post->bookmarks()->detach($userId);
+                $bookmarked = false;
+            } else {
+                $post->bookmarks()->attach($userId);
+                $bookmarked = true;
+            }
+
+            // Get fresh count
+            $bookmarksCount = $post->bookmarks()->count();
+
+            Log::info('toggleBookmark success', [
+                'bookmarked' => $bookmarked,
+                'bookmarks_count' => $bookmarksCount
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'bookmarked' => $bookmarked,
+                'bookmarks_count' => $bookmarksCount,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('toggleBookmark failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to toggle bookmark',
+                'message' => $e->getMessage()
+            ], 500);
         }
-
-        Log::info('toggleBookmark called', ['post_id' => $post->id, 'user_id' => $userId]);
-
-        $exists = $post->bookmarks()->where('user_id', $userId)->exists();
-
-        if ($exists) {
-            $post->bookmarks()->detach($userId);
-            $bookmarked = false;
-        } else {
-            $post->bookmarks()->attach($userId);
-            $bookmarked = true;
-        }
-
-        $bookmarksCount = $post->bookmarks()->count();
-
-        return response()->json([
-            'bookmarked' => $bookmarked,
-            'bookmarks_count' => $bookmarksCount,
-        ]);
     }
 
-    public function store(Request $request)
+    /**
+     * Store a new post with optional multiple images.
+     */
+    public function store(StoreRequest $request)
     {
-        // Validasi dasar
-        $validated = $request->validate([
-            'content' => 'required|string|max:280',
-            'images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048', // Max 2MB per image
-            'images' => 'nullable|array|max:4',
-            'videos.*' => 'nullable|mimetypes:video/mp4,video/quicktime,video/x-msvideo,video/x-ms-wmv|max:51200', // Max 20MB per video
-            'videos' => 'nullable|array|max:4',
-        ]);
+        $validated = $request->validated();
 
         // Validasi total file maksimal 4
         $totalFiles = 0;
@@ -137,11 +196,57 @@ class PostController extends Controller
             }
         }
 
+        // Build ordered mixed media if media_order is provided.
+        $media = [];
+        $mediaOrderRaw = $validated['media_order'] ?? null;
+        if (is_string($mediaOrderRaw) && trim($mediaOrderRaw) !== '') {
+            try {
+                $decoded = json_decode($mediaOrderRaw, true, 512, JSON_THROW_ON_ERROR);
+
+                if (is_array($decoded)) {
+                    foreach ($decoded as $item) {
+                        if (!is_array($item)) {
+                            continue;
+                        }
+
+                        $type = $item['type'] ?? null;
+                        $index = $item['index'] ?? null;
+
+                        if (!is_string($type) || !is_numeric($index)) {
+                            continue;
+                        }
+
+                        $index = (int) $index;
+
+                        if ($type === 'image' && isset($imagePaths[$index])) {
+                            $media[] = ['type' => 'image', 'src' => $imagePaths[$index]];
+                        }
+
+                        if ($type === 'video' && isset($videoPaths[$index])) {
+                            $media[] = ['type' => 'video', 'src' => $videoPaths[$index]];
+                        }
+                    }
+                }
+            } catch (\Throwable $e) {
+                // Ignore invalid media_order and fall back to default ordering
+            }
+        }
+
+        if (empty($media)) {
+            foreach ($imagePaths as $src) {
+                $media[] = ['type' => 'image', 'src' => $src];
+            }
+            foreach ($videoPaths as $src) {
+                $media[] = ['type' => 'video', 'src' => $src];
+            }
+        }
+
         $post = Post::create([
             'user_id' => Auth::id(),
             'content' => $validated['content'],
             'images' => !empty($imagePaths) ? $imagePaths : null,
             'videos' => !empty($videoPaths) ? $videoPaths : null,
+            'media' => !empty($media) ? $media : null,
         ]);
 
         Log::info('Post created successfully', [
@@ -154,14 +259,32 @@ class PostController extends Controller
         return redirect()->back()->with('success', 'Post created successfully!');
     }
 
+    /**
+     * Show post detail including comments.
+     */
     public function show(Post $post)
     {
+        $userId = Auth::id();
+        $post->loadCount(['comments', 'likes', 'bookmarks', 'reposts']);
+        $post->load([
+            'user',
+            'comments' => fn($q) => $q->with('user')->latest(),
+        ]);
+
+        $post->liked = $userId ? $post->likes()->where('user_id', $userId)->exists() : false;
+        $post->bookmarked = $userId ? $post->bookmarks()->where('user_id', $userId)->exists() : false;
+        $post->reposted = $userId ? $post->reposts()->where('user_id', $userId)->exists() : false;
+        $post->replies_count = $post->comments_count;
+
         return Inertia::render('PostDetail', [
-            'post' => $post->load('user'),
+            'post' => $post,
             'user' => Auth::user(),
         ]);
     }
 
+    /**
+     * Delete a post owned by the authenticated user.
+     */
     public function destroy(Post $post)
     {
         if ($post->user_id !== Auth::id()) {
@@ -172,7 +295,7 @@ class PostController extends Controller
 
         $post->delete();
 
-        Log::info('Post deleted successfully', [
+        Log::info('Post deleted', [
             'post_id' => $post->id,
             'user_id' => Auth::id(),
         ]);
@@ -180,51 +303,139 @@ class PostController extends Controller
         return redirect()->back()->with('success', 'Post deleted successfully!');
     }
 
+    /**
+     * List posts liked by authenticated user.
+     */
     public function likes()
     {
         $userId = Auth::id();
 
-        $posts = Post::whereHas('likes', function ($query) use ($userId) {
-            $query->where('user_id', $userId);
-        })
+        $posts = Post::whereHas('likes', fn($q) => $q->where('user_id', $userId))
             ->with('user')
-            ->withCount('likes')
-            ->withCount('bookmarks')
-            ->orderBy('created_at', 'desc')
+            ->withCount(['likes', 'bookmarks', 'comments'])
+            ->latest()
             ->get()
             ->map(function ($post) use ($userId) {
-                $post->liked = true; // Since we're on the likes page, these are liked
-                $post->bookmarked = $post->bookmarks()->where('user_id', $userId)->exists();
+                $post->liked        = true;
+                $post->bookmarked   = $post->bookmarks()->where('user_id', $userId)->exists();
+                $post->replies_count = $post->comments_count;
                 return $post;
             });
 
         return Inertia::render('Likes', [
-            'user' => Auth::user(),
+            'user'  => Auth::user(),
             'posts' => $posts,
         ]);
     }
 
+    /**
+     * List posts bookmarked by authenticated user.
+     */
     public function bookmarks()
     {
         $userId = Auth::id();
 
-        $posts = Post::whereHas('bookmarks', function ($query) use ($userId) {
-            $query->where('user_id', $userId);
-        })
+        $posts = Post::whereHas('bookmarks', fn($q) => $q->where('user_id', $userId))
             ->with('user')
-            ->withCount('likes')
-            ->withCount('bookmarks')
-            ->orderBy('created_at', 'desc')
+            ->withCount(['likes', 'bookmarks', 'comments'])
+            ->latest()
             ->get()
             ->map(function ($post) use ($userId) {
-                $post->liked = $post->likes()->where('user_id', $userId)->exists();
-                $post->bookmarked = true; // Since we're on the bookmarks page, these are bookmarked
+                $post->liked        = $post->likes()->where('user_id', $userId)->exists();
+                $post->bookmarked   = true;
+                $post->replies_count = $post->comments_count;
                 return $post;
             });
 
         return Inertia::render('Bookmarks', [
-            'user' => Auth::user(),
+            'user'  => Auth::user(),
             'posts' => $posts,
         ]);
+    }
+
+    /* -------------------------------------------------------
+     | Private Helper Methods
+     ------------------------------------------------------- */
+
+    /**
+     * Handle multiple image uploads.
+     */
+    private function handleImages(Request $request)
+    {
+        if (! $request->hasFile('images')) {
+            return [];
+        }
+
+        return collect($request->file('images'))
+            ->map(fn($img) => asset('storage/' . $img->store('posts', 'public')))
+            ->toArray();
+    }
+
+    /**
+     * Format original posts for feed.
+     */
+    private function getFormattedPosts($userId)
+    {
+        return Post::with('user')
+            ->withCount(['likes', 'bookmarks', 'reposts'])
+            ->latest()
+            ->get()
+            ->map(function ($post) use ($userId) {
+                $post->type            = 'post';
+                $post->liked           = $post->likes()->where('user_id', $userId)->exists();
+                $post->bookmarked      = $post->bookmarks()->where('user_id', $userId)->exists();
+                $post->reposted        = $post->reposts()->where('user_id', $userId)->exists();
+                $post->likes_count     = $post->likes_count;
+                $post->bookmarks_count = $post->bookmarks_count;
+                $post->reposts_count   = $post->reposts_count;
+
+                // Debug: Log video data
+                if ($post->videos) {
+                    Log::info("Post {$post->id} has videos:", ['videos' => $post->videos]);
+                }
+
+                return $post;
+            });
+    }
+
+    /**
+     * Convert reposts into unified feed objects.
+     */
+    private function getFormattedReposts($userId)
+    {
+        return Repost::with([
+            'user',
+            'post' => fn($q) =>
+            $q->with('user')->withCount(['likes', 'bookmarks', 'reposts'])
+        ])
+            ->latest()
+            ->get()
+            ->map(function ($repost) use ($userId) {
+                $post = $repost->post;
+
+                return (object) [
+                    'id'                => "repost_{$repost->id}",
+                    'type'              => 'repost',
+                    'repost_id'         => $repost->id,
+                    'user_id'           => $repost->user_id,
+                    'post_id'           => $post->id,
+                    'user'              => $repost->user,
+                    'content'           => $post->content,
+                    'images'            => $post->images,
+                    'videos'            => $post->videos,
+                    'media'             => $post->media,
+                    'repost_caption'    => $repost->caption,
+                    'repost_images'     => $repost->images,
+                    'created_at'        => $repost->created_at,
+                    'original_post_user' => $post->user,
+                    'likes_count'       => $post->likes_count,
+                    'bookmarks_count'   => $post->bookmarks_count,
+                    'reposts_count'     => $post->reposts_count,
+                    'replies_count'     => $post->comments()->count(),
+                    'liked'             => $post->likes()->where('user_id', $userId)->exists(),
+                    'bookmarked'        => $post->bookmarks()->where('user_id', $userId)->exists(),
+                    'reposted'          => $post->reposts()->where('user_id', $userId)->exists(),
+                ];
+            });
     }
 }

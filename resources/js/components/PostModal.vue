@@ -17,20 +17,23 @@ const emit = defineEmits<{
 }>();
 
 const content = ref('');
-const imageFiles = ref<File[]>([]);
-const imagePreviews = ref<string[]>([]);
-const videoFiles = ref<File[]>([]);
-const videoPreviews = ref<string[]>([]);
+
+type MediaItem = {
+    id: string;
+    type: 'image' | 'video';
+    file: File;
+    preview: string;
+};
+
+const mediaItems = ref<MediaItem[]>([]);
 const isSubmitting = ref(false);
 const maxTotalFiles = 4; // Total max untuk gambar + video
-const maxVideoSize = 50 * 1024 * 1024; // 20MB
-const maxImageSize = 2 * 1024 * 1024; // 2MB
+const maxVideoSize = 50 * 1024 * 1024; // 50MB
+const maxImageSize = 10 * 1024 * 1024; // 10MB
 
 const characterCount = computed(() => content.value.length);
 const isOverLimit = computed(() => characterCount.value > 280);
-const totalFiles = computed(
-    () => imageFiles.value.length + videoFiles.value.length,
-);
+const totalFiles = computed(() => mediaItems.value.length);
 const canPost = computed(
     () =>
         content.value.trim().length > 0 &&
@@ -38,6 +41,17 @@ const canPost = computed(
         !isSubmitting.value &&
         totalFiles.value <= maxTotalFiles,
 );
+
+const imagePreviews = computed(() =>
+    mediaItems.value.filter((m) => m.type === 'image'),
+);
+
+const videoPreviews = computed(() =>
+    mediaItems.value.filter((m) => m.type === 'video'),
+);
+
+const createMediaId = () =>
+    `${Date.now()}_${Math.random().toString(16).slice(2)}`;
 
 // Handle multiple image selection
 const handleImageSelect = (event: Event) => {
@@ -53,7 +67,7 @@ const handleImageSelect = (event: Event) => {
 
     for (const file of files) {
         if (file.size > maxImageSize) {
-            alert(`${file.name} size must be less than 2MB`);
+            alert(`${file.name} size must be less than 10MB`);
             continue;
         }
 
@@ -62,11 +76,12 @@ const handleImageSelect = (event: Event) => {
             continue;
         }
 
-        imageFiles.value.push(file);
-
+        const id = createMediaId();
+        mediaItems.value.push({ id, type: 'image', file, preview: '' });
         const reader = new FileReader();
         reader.onload = (e) => {
-            imagePreviews.value.push(e.target?.result as string);
+            const item = mediaItems.value.find((m) => m.id === id);
+            if (item) item.preview = e.target?.result as string;
         };
         reader.readAsDataURL(file);
     }
@@ -86,7 +101,7 @@ const handleVideoSelect = (event: Event) => {
 
     for (const file of files) {
         if (file.size > maxVideoSize) {
-            alert(`${file.name} size must be less than 20MB`);
+            alert(`${file.name} size must be less than 50MB`);
             continue;
         }
 
@@ -95,11 +110,12 @@ const handleVideoSelect = (event: Event) => {
             continue;
         }
 
-        videoFiles.value.push(file);
-
+        const id = createMediaId();
+        mediaItems.value.push({ id, type: 'video', file, preview: '' });
         const reader = new FileReader();
         reader.onload = (e) => {
-            videoPreviews.value.push(e.target?.result as string);
+            const item = mediaItems.value.find((m) => m.id === id);
+            if (item) item.preview = e.target?.result as string;
         };
         reader.readAsDataURL(file);
     }
@@ -107,8 +123,9 @@ const handleVideoSelect = (event: Event) => {
 
 // Remove image
 const removeImage = (index: number) => {
-    imageFiles.value.splice(index, 1);
-    imagePreviews.value.splice(index, 1);
+    const item = imagePreviews.value[index];
+    if (!item) return;
+    mediaItems.value = mediaItems.value.filter((m) => m.id !== item.id);
 
     const fileInput = document.getElementById(
         'image-upload',
@@ -118,8 +135,9 @@ const removeImage = (index: number) => {
 
 // Remove video
 const removeVideo = (index: number) => {
-    videoFiles.value.splice(index, 1);
-    videoPreviews.value.splice(index, 1);
+    const item = videoPreviews.value[index];
+    if (!item) return;
+    mediaItems.value = mediaItems.value.filter((m) => m.id !== item.id);
 
     const fileInput = document.getElementById(
         'video-upload',
@@ -142,31 +160,51 @@ const submitPost = async () => {
         const formData = new FormData();
         formData.append('content', content.value.trim());
 
-        // Append all images
-        imageFiles.value.forEach((file) => {
-            formData.append('images[]', file);
+        const mediaOrder: Array<{ type: 'image' | 'video'; index: number }> =
+            [];
+        let imageIndex = 0;
+        let videoIndex = 0;
+
+        // Append files in the exact order user selected them.
+        mediaItems.value.forEach((item) => {
+            if (item.type === 'image') {
+                formData.append('images[]', item.file);
+                mediaOrder.push({ type: 'image', index: imageIndex });
+                imageIndex++;
+                return;
+            }
+
+            formData.append('videos[]', item.file);
+            mediaOrder.push({ type: 'video', index: videoIndex });
+            videoIndex++;
         });
 
-        // Append all videos
-        videoFiles.value.forEach((file) => {
-            formData.append('videos[]', file);
-        });
+        formData.append('media_order', JSON.stringify(mediaOrder));
 
         await router.post('/posts', formData, {
             preserveState: false,
             forceFormData: true,
             onSuccess: () => {
                 content.value = '';
-                imageFiles.value = [];
-                imagePreviews.value = [];
-                videoFiles.value = [];
-                videoPreviews.value = [];
+                mediaItems.value = [];
                 emit('posted');
                 emit('close');
             },
             onError: (errors) => {
-                console.error('Error posting:', errors);
-                alert('Failed to create post. Please try again.');
+                console.error('Post submit validation errors:', errors);
+                const firstError =
+                    (errors as any).content ||
+                    (errors as any).media ||
+                    (errors as any).videos ||
+                    (errors as any)['videos.0'] ||
+                    (errors as any).images ||
+                    (errors as any)['images.0'] ||
+                    Object.values(errors as Record<string, string>)[0];
+
+                alert(
+                    firstError ||
+                        'An error occurred while submitting your post.',
+                );
             },
         });
     } catch (error) {
@@ -179,10 +217,7 @@ const submitPost = async () => {
 const closeModal = () => {
     if (!isSubmitting.value) {
         content.value = '';
-        imageFiles.value = [];
-        imagePreviews.value = [];
-        videoFiles.value = [];
-        videoPreviews.value = [];
+        mediaItems.value = [];
         emit('close');
     }
 };
@@ -197,7 +232,7 @@ const handleKeydown = (event: KeyboardEvent) => {
 <template>
     <div
         v-if="props.isOpen"
-        class="bg-opacity-30 fixed inset-0 z-50 flex items-center justify-center bg-gray-400 backdrop-blur-sm"
+        class="bg-opacity-30 fixed inset-0 z-50 flex items-center justify-center backdrop-blur"
         @click.self="closeModal"
         @keydown="handleKeydown"
         tabindex="0"
@@ -274,12 +309,12 @@ const handleKeydown = (event: KeyboardEvent) => {
                             }"
                         >
                             <div
-                                v-for="(preview, index) in imagePreviews"
-                                :key="'img-' + index"
+                                v-for="(item, index) in imagePreviews"
+                                :key="item.id"
                                 class="relative"
                             >
                                 <img
-                                    :src="preview"
+                                    :src="item.preview"
                                     :alt="`Preview ${index + 1}`"
                                     class="h-48 w-full rounded-lg border border-gray-200 object-cover"
                                 />
@@ -316,12 +351,12 @@ const handleKeydown = (event: KeyboardEvent) => {
                             }"
                         >
                             <div
-                                v-for="(preview, index) in videoPreviews"
-                                :key="'vid-' + index"
+                                v-for="(item, index) in videoPreviews"
+                                :key="item.id"
                                 class="relative"
                             >
                                 <video
-                                    :src="preview"
+                                    :src="item.preview"
                                     controls
                                     class="h-48 w-full rounded-lg border border-gray-200 object-cover"
                                 ></video>

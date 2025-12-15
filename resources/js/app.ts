@@ -1,17 +1,11 @@
+// CRITICAL: Import bootstrap FIRST before anything else
+import './bootstrap';
 import '../css/app.css';
-
 import { createInertiaApp } from '@inertiajs/vue3';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import type { DefineComponent } from 'vue';
 import { createApp, h } from 'vue';
 import { initializeTheme } from './composables/useAppearance';
-import axios from 'axios'; 
-
-axios.defaults.withCredentials = true;
-axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
-
-const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-if (token) axios.defaults.headers.common['X-CSRF-TOKEN'] = token;
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
@@ -32,5 +26,4 @@ createInertiaApp({
     },
 });
 
-// This will set light / dark mode on page load...
 initializeTheme();
