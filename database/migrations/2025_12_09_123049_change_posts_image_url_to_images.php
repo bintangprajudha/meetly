@@ -12,8 +12,15 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('posts', function (Blueprint $table) {
-            $table->dropColumn('image_url');
-            $table->json('images')->nullable();
+            // Cek dulu apakah kolom ada sebelum drop
+            if (Schema::hasColumn('posts', 'image_url')) {
+                $table->dropColumn('image_url');
+            }
+
+            // Cek dulu apakah kolom sudah ada sebelum tambah
+            if (!Schema::hasColumn('posts', 'images')) {
+                $table->json('images')->nullable();
+            }
         });
     }
 
@@ -23,8 +30,13 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('posts', function (Blueprint $table) {
-            $table->dropColumn('images');
-            $table->string('image_url')->nullable();
+            if (Schema::hasColumn('posts', 'images')) {
+                $table->dropColumn('images');
+            }
+
+            if (!Schema::hasColumn('posts', 'image_url')) {
+                $table->string('image_url')->nullable();
+            }
         });
     }
 };

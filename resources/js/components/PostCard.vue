@@ -9,6 +9,7 @@ const props = defineProps<{
         id: number;
         content: string;
         images?: string[];
+        videos?: string[];
         likes_count: number;
         bookmarks_count: number;
         replies_count: number;
@@ -319,18 +320,28 @@ const cancelComment = () => {
                 {{ post.content }}
             </p>
 
-            <!-- Image (if exists) -->
+            <!-- Combined Media (Images + Videos) -->
             <div
-                v-if="post.images && post.images.length > 0"
+                v-if="
+                    (post.images && post.images.length > 0) ||
+                    (post.videos && post.videos.length > 0)
+                "
                 class="mt-3 grid gap-2"
                 :class="{
-                    'grid-cols-1': post.images.length === 1,
-                    'grid-cols-2': post.images.length > 1,
+                    'grid-cols-1':
+                        (post.images?.length || 0) +
+                            (post.videos?.length || 0) ===
+                        1,
+                    'grid-cols-2':
+                        (post.images?.length || 0) +
+                            (post.videos?.length || 0) >
+                        1,
                 }"
             >
+                <!-- Images -->
                 <img
-                    v-for="(image, index) in post.images"
-                    :key="index"
+                    v-for="(image, index) in post.images || []"
+                    :key="'img-' + index"
                     :src="image"
                     :alt="`Post image ${index + 1}`"
                     class="h-64 w-full rounded-lg object-cover"
@@ -340,6 +351,15 @@ const cancelComment = () => {
                                 'none')
                     "
                 />
+
+                <!-- Videos -->
+                <video
+                    v-for="(video, index) in post.videos || []"
+                    :key="'vid-' + index"
+                    :src="video"
+                    controls
+                    class="h-64 w-full rounded-lg object-cover"
+                ></video>
             </div>
 
             <!-- Comments preview -->

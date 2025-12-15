@@ -14,7 +14,6 @@ Route::get('/', function () {
     return Inertia::render('Home');
 })->name('home');
 
-
 // Guest routes (only accessible when not logged in)
 Route::middleware(['guest'])->group(function () {
     // Show login/register forms

@@ -25,7 +25,7 @@ class UserController extends Controller
         $likedPosts = $user->likes()->with('user')->latest()->get();
 
         return Inertia::render('UserProfile', [
-            'profileUser' => $user,
+            'profileUser' => $user, 
             'posts' => $posts,
             'postsCount' => $posts->count(),
             'isFollowing' => Auth::check()

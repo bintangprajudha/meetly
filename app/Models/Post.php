@@ -17,6 +17,7 @@ class Post extends Model
         'user_id',
         'content',
         'images',
+        'videos',  // Tambahkan ini
         'likes_count',
         'bookmarks_count',
         'replies_count',
@@ -25,14 +26,15 @@ class Post extends Model
     protected $casts = [
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
-        'images' => 'array'
+        'images' => 'array',
+        'videos' => 'array',  // Tambahkan ini
     ];
 
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
-    
+
     public function comments(): HasMany
     {
         return $this->hasMany(Comment::class);

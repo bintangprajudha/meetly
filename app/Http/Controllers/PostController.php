@@ -94,19 +94,46 @@ class PostController extends Controller
 
     public function store(Request $request)
     {
+        // Validasi dasar
         $validated = $request->validate([
             'content' => 'required|string|max:280',
-            'images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048', // Multiple images
-            'images' => 'nullable|array|max:4', // Max 4 images
+            'images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048', // Max 2MB per image
+            'images' => 'nullable|array|max:4',
+            'videos.*' => 'nullable|mimetypes:video/mp4,video/quicktime,video/x-msvideo,video/x-ms-wmv|max:51200', // Max 20MB per video
+            'videos' => 'nullable|array|max:4',
         ]);
 
+        // Validasi total file maksimal 4
+        $totalFiles = 0;
+        if ($request->hasFile('images')) {
+            $totalFiles += count($request->file('images'));
+        }
+        if ($request->hasFile('videos')) {
+            $totalFiles += count($request->file('videos'));
+        }
+
+        if ($totalFiles > 4) {
+            return redirect()->back()->withErrors([
+                'media' => 'You can upload a maximum of 4 files (images and videos combined).'
+            ])->withInput();
+        }
+
         $imagePaths = [];
+        $videoPaths = [];
 
         // Handle multiple image uploads
         if ($request->hasFile('images')) {
             foreach ($request->file('images') as $image) {
-                $path = $image->store('posts', 'public');
+                $path = $image->store('posts/images', 'public');
                 $imagePaths[] = asset('storage/' . $path);
+            }
+        }
+
+        // Handle video upload
+        if ($request->hasFile('videos')) {
+            foreach ($request->file('videos') as $video) {
+                $path = $video->store('posts/videos', 'public');
+                $videoPaths[] = asset('storage/' . $path);
             }
         }
 
@@ -114,13 +141,14 @@ class PostController extends Controller
             'user_id' => Auth::id(),
             'content' => $validated['content'],
             'images' => !empty($imagePaths) ? $imagePaths : null,
+            'videos' => !empty($videoPaths) ? $videoPaths : null,
         ]);
 
         Log::info('Post created successfully', [
             'post_id' => $post->id,
             'user_id' => Auth::id(),
-            'content_length' => strlen((string) ($validated['content'] ?? '')),
             'images_count' => count($imagePaths),
+            'videos_count' => count($videoPaths),
         ]);
 
         return redirect()->back()->with('success', 'Post created successfully!');
