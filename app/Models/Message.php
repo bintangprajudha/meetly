@@ -6,17 +6,20 @@ use Illuminate\Database\Eloquent\Model;
 
 class Message extends Model
 {
-     protected $fillable = ['sender_id', 'receiver_id', 'message', 'is_read', 'images', 'status'];
+    protected $fillable = ['sender_id', 'receiver_id', 'message', 'is_read', 'images', 'videos', 'status'];
 
     protected $casts = [
-        'images' => 'array'
+        'images' => 'array',
+        'videos' => 'array'
     ];
 
-    public function sender() {
+    public function sender()
+    {
         return $this->belongsTo(User::class, 'sender_id');
     }
 
-    public function receiver() {
+    public function receiver()
+    {
         return $this->belongsTo(User::class, 'receiver_id');
     }
 }

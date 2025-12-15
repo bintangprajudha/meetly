@@ -13,13 +13,13 @@ use Illuminate\Support\Facades\Auth;
 
 
 class MessageController extends Controller
-{   
+{
     public function index(User $user = null)
     {
         return Inertia::render('Messages/Chat', [
             'chatUser' => $user,
-            'auth' => [ 
-                'user' => Auth::user(), 
+            'auth' => [
+                'user' => Auth::user(),
             ],
         ]);
     }
@@ -34,14 +34,14 @@ class MessageController extends Controller
 
         $messages = Message::where(function ($q) use ($me, $user) {
             $q->where('sender_id', $me)
-              ->where('receiver_id', $user->id);
+                ->where('receiver_id', $user->id);
         })
-        ->orWhere(function ($q) use ($me, $user) {
-            $q->where('sender_id', $user->id)
-              ->where('receiver_id', $me);
-        })
-        ->orderBy('created_at')
-        ->get();
+            ->orWhere(function ($q) use ($me, $user) {
+                $q->where('sender_id', $user->id)
+                    ->where('receiver_id', $me);
+            })
+            ->orderBy('created_at')
+            ->get();
 
         Message::where('sender_id', $user->id)
             ->where('receiver_id', $me)
@@ -52,7 +52,7 @@ class MessageController extends Controller
     }
 
     public function send(Request $request)
-    {   
+    {
         $me = Auth::id();
 
         if ($request->receiver_id == $me) {
@@ -75,17 +75,17 @@ class MessageController extends Controller
     {
         $me = Auth::id();
 
-        $conversationPartners = Message::where(function($query) use ($me) {
-                $query->where('sender_id', $me)
-                    ->orWhere('receiver_id', $me);
-            })
+        $conversationPartners = Message::where(function ($query) use ($me) {
+            $query->where('sender_id', $me)
+                ->orWhere('receiver_id', $me);
+        })
             ->select('sender_id', 'receiver_id')
             ->get()
-            ->flatMap(function($message) use ($me) {
+            ->flatMap(function ($message) use ($me) {
                 return [$message->sender_id, $message->receiver_id];
             })
             ->unique()
-            ->reject(function($id) use ($me) {
+            ->reject(function ($id) use ($me) {
                 return $id == $me;
             })
             ->values();
@@ -94,8 +94,8 @@ class MessageController extends Controller
 
         $result = $users->map(function ($user) use ($me) {
             $lastMessage = Message::where(function ($q) use ($me, $user) {
-                    $q->where('sender_id', $me)->where('receiver_id', $user->id);
-                })
+                $q->where('sender_id', $me)->where('receiver_id', $user->id);
+            })
                 ->orWhere(function ($q) use ($me, $user) {
                     $q->where('sender_id', $user->id)->where('receiver_id', $me);
                 })
@@ -107,9 +107,9 @@ class MessageController extends Controller
             }
 
             $unreadCount = Message::where('sender_id', $user->id)
-            ->where('receiver_id', $me)
-            ->where('status', '!=', 'read')
-            ->count();
+                ->where('receiver_id', $me)
+                ->where('status', '!=', 'read')
+                ->count();
 
             $isRead = ($lastMessage->sender_id === $me && $lastMessage->status === 'read');
 
@@ -121,7 +121,7 @@ class MessageController extends Controller
                     'avatar' => null,
                 ],
                 'last_message' => $lastMessage->message ?? null,
-                'last_message_at' => $lastMessage->created_at ?? null,  
+                'last_message_at' => $lastMessage->created_at ?? null,
                 'is_read' => $isRead,
                 'unread_count' => $unreadCount,
             ];
@@ -175,7 +175,7 @@ class MessageController extends Controller
             event(new MessageRead($msg->id, $msg->sender_id));
         }
 
-        return $updated; 
+        return $updated;
     }
 
 
@@ -204,36 +204,40 @@ class MessageController extends Controller
             $post = \App\Models\Post::findOrFail($request->post_id);
             $senderId = Auth::id();
 
-        $messages = [];
-        $sharedCount = 0;
+            $messages = [];
+            $sharedCount = 0;
 
-        foreach ($request->user_ids as $userId) {
-            // Skip if trying to share with self
-            if ($userId == $senderId) continue;
+            foreach ($request->user_ids as $userId) {
+                // Skip if trying to share with self
+                if ($userId == $senderId) continue;
 
-            // Build message content with post details
-            $messageContent = "Shared a post: \"{$post->content}\"";
-            if ($post->images && count($post->images) > 0) {
-                $messageContent .= "\n\n[Images: " . count($post->images) . " attached]";
+                // Build message content with post details
+                $messageContent = "Shared a post: \"{$post->content}\"";
+                if ($post->images && count($post->images) > 0) {
+                    $messageContent .= "\n\n[Images: " . count($post->images) . " attached]";
+                }
+                if ($post->videos && count($post->videos) > 0) {
+                    $messageContent .= "\n[Videos: " . count($post->videos) . " attached]";
+                }
+
+                $message = Message::create([
+                    'sender_id' => $senderId,
+                    'receiver_id' => $userId,
+                    'message' => $messageContent,
+                    'images' => $post->images, // Include images from the post
+                    'videos' => $post->videos, // Include videos from the post
+                ]);
+
+                $messages[] = $message;
+                $sharedCount++;
+
+                // Broadcast the message
+                broadcast(new NewMessage($message))->toOthers();
             }
 
-            $message = Message::create([
-                'sender_id' => $senderId,
-                'receiver_id' => $userId,
-                'message' => $messageContent,
-                'images' => $post->images, // Include images from the post
-            ]);
-
-            $messages[] = $message;
-            $sharedCount++;
-
-            // Broadcast the message
-            broadcast(new NewMessage($message))->toOthers();
-        }
-
-        $message = $sharedCount > 0
-            ? "Post shared successfully with {$sharedCount} user" . ($sharedCount > 1 ? 's' : '') . "!"
-            : "No posts were shared.";
+            $message = $sharedCount > 0
+                ? "Post shared successfully with {$sharedCount} user" . ($sharedCount > 1 ? 's' : '') . "!"
+                : "No posts were shared.";
 
             return response()->json([
                 'success' => $sharedCount > 0,

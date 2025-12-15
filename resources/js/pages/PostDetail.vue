@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import { Link, router } from '@inertiajs/vue3';
+import CommentModal from '@/components/CommentModal.vue';
+import PostCard from '@/components/PostCard.vue';
 import AppHeaderLayout from '@/layouts/app/AppHeaderLayout.vue';
 import AppSidebarLayout from '@/layouts/app/AppSidebarLayout.vue';
-import PostCard from '@/components/PostCard.vue';
-import CommentModal from '@/components/CommentModal.vue';
+import { Link, router } from '@inertiajs/vue3';
+import { ref } from 'vue';
 
 const props = defineProps<{
     post: {
@@ -13,6 +13,7 @@ const props = defineProps<{
         content: string;
         image_url?: string;
         images?: string[];
+        videos?: string[];
         likes_count: number;
         bookmarks_count: number;
         reposts_count?: number;
@@ -59,7 +60,7 @@ const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
     const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
-    
+
     if (diffInHours < 1) {
         const diffInMinutes = Math.floor(diffInHours * 60);
         return `${diffInMinutes}m`;
@@ -85,7 +86,8 @@ const handlePostCardCommented = (postId: number | string, comment: any) => {
         comments.value.unshift(comment);
         // if props.post has a comments_count, keep it in sync
         if ((props.post as any).comments_count !== undefined) {
-            (props.post as any).comments_count = ((props.post as any).comments_count || 0) + 1;
+            (props.post as any).comments_count =
+                ((props.post as any).comments_count || 0) + 1;
         }
     }
 };
@@ -93,14 +95,17 @@ const handlePostCardCommented = (postId: number | string, comment: any) => {
 const handleCommented = async () => {
     // Fetch the latest comment from the server and prepend it
     try {
-        const targetId = props.post.type === 'repost' && props.post.post_id ? props.post.post_id : props.post.id;
+        const targetId =
+            props.post.type === 'repost' && props.post.post_id
+                ? props.post.post_id
+                : props.post.id;
         const res = await fetch(`/posts/${targetId}/comments/latest`, {
             method: 'GET',
             credentials: 'include',
             headers: {
-                'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            }
+                Accept: 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
         });
 
         if (res.ok) {
@@ -123,41 +128,80 @@ const closeCommentModal = () => {
     <AppSidebarLayout>
         <AppHeaderLayout>
             <main class="p-6">
-                <div class="max-w-2xl mx-auto">
+                <div class="mx-auto max-w-2xl">
                     <!-- Back button -->
-                    <Link href="/dashboard" class="mb-4 text-blue-500 hover:text-blue-600 text-sm font-medium">
+                    <Link
+                        href="/dashboard"
+                        class="mb-4 text-sm font-medium text-blue-500 hover:text-blue-600"
+                    >
                         ← Back to feed
                     </Link>
 
                     <!-- Post Card -->
-                    <PostCard 
-                        :post="post" 
+                    <PostCard
+                        :post="post"
                         :current-user="user"
                         @delete="handleDeletePost"
                         @commented="handlePostCardCommented"
                     />
 
                     <!-- Comments Section -->
-                    <div class="mt-6 max-w-2xl mx-auto">
+                    <div class="mx-auto mt-6 max-w-2xl">
                         <!-- Comments List -->
                         <div class="space-y-4">
-                            <div v-if="comments.length === 0" class="text-center py-8 text-gray-500">
+                            <div
+                                v-if="comments.length === 0"
+                                class="py-8 text-center text-gray-500"
+                            >
                                 No comments yet. Be the first to comment!
                             </div>
 
-                            <div v-for="comment in comments" :key="comment.id" class="bg-white border border-gray-200 rounded-lg p-4">
+                            <div
+                                v-for="comment in comments"
+                                :key="comment.id"
+                                class="rounded-lg border border-gray-200 bg-white p-4"
+                            >
                                 <div class="flex items-start space-x-3">
-                                    <div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-medium text-sm flex-shrink-0">
-                                        {{ comment.user?.name.charAt(0).toUpperCase() }}
+                                    <div
+                                        class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-blue-500 text-sm font-medium text-white"
+                                    >
+                                        {{
+                                            comment.user?.name
+                                                .charAt(0)
+                                                .toUpperCase()
+                                        }}
                                     </div>
                                     <div class="flex-1">
-                                        <div class="flex items-center space-x-2">
-                                            <p class="font-semibold text-gray-900">{{ comment.user?.name }}</p>
-                                            <span class="text-gray-500 text-sm">@{{ comment.user?.email.split('@')[0] }}</span>
+                                        <div
+                                            class="flex items-center space-x-2"
+                                        >
+                                            <p
+                                                class="font-semibold text-gray-900"
+                                            >
+                                                {{ comment.user?.name }}
+                                            </p>
+                                            <span class="text-sm text-gray-500"
+                                                >@{{
+                                                    comment.user?.email.split(
+                                                        '@',
+                                                    )[0]
+                                                }}</span
+                                            >
                                             <span class="text-gray-400">·</span>
-                                            <span class="text-gray-500 text-sm">{{ formatDate(comment.created_at) }}</span>
+                                            <span
+                                                class="text-sm text-gray-500"
+                                                >{{
+                                                    formatDate(
+                                                        comment.created_at,
+                                                    )
+                                                }}</span
+                                            >
                                         </div>
-                                        <p class="text-gray-900 mt-2 whitespace-pre-wrap">{{ comment.content }}</p>
+                                        <p
+                                            class="mt-2 whitespace-pre-wrap text-gray-900"
+                                        >
+                                            {{ comment.content }}
+                                        </p>
                                     </div>
                                 </div>
                             </div>
@@ -165,9 +209,13 @@ const closeCommentModal = () => {
                     </div>
 
                     <!-- Comment Modal -->
-                    <CommentModal 
-                        :isOpen="showCommentModal" 
-                        :postId="props.post.type === 'repost' && props.post.post_id ? props.post.post_id : props.post.id"
+                    <CommentModal
+                        :isOpen="showCommentModal"
+                        :postId="
+                            props.post.type === 'repost' && props.post.post_id
+                                ? props.post.post_id
+                                : props.post.id
+                        "
                         :user="props.user"
                         @close="closeCommentModal"
                         @commented="handleCommented"

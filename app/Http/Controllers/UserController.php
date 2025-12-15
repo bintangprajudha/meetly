@@ -18,7 +18,7 @@ use Inertia\Inertia;
  */
 
 class UserController extends Controller
-{   
+{
     /**
      * API: Get minimal user list used for autocomplete / search.
      */
@@ -27,7 +27,7 @@ class UserController extends Controller
         return User::select('id', 'name', 'avatar')->get();
     }
 
-     /**
+    /**
      * Show the public profile of a given username, including:
      * - User details
      * - Posts they created
@@ -55,16 +55,16 @@ class UserController extends Controller
             'posts'       => $allPosts,
             'postsCount'  => $allPosts->count(),
             'isFollowing' => $authUser ? $authUser->following->contains($profileUser->id) : false,
-            'auth' => [ 'user' => $authUser ],
+            'auth' => ['user' => $authUser],
             'likedPosts' => $this->getLikedPosts($profileUser, $authUserId),
             'replies'    => $this->getUserReplies($profileUser, $authUserId),
             'reposts'    => $reposts, // Add this line - send reposts separately for Replies tab
         ]);
     }
 
-     /**
+    /**
      * Fetch profile owner with follower/following count.
-     */ 
+     */
     private function getProfileUser($username)
     {
         return User::where('name', $username)
@@ -91,11 +91,11 @@ class UserController extends Controller
     private function getUserReposts($userId, $authUserId)
     {
         return Repost::with([
-                'user',
-                'post.user',
-                'post' => fn($q) =>
-                    $q->withCount(['likes', 'bookmarks', 'reposts'])
-            ])
+            'user',
+            'post.user',
+            'post' => fn($q) =>
+            $q->withCount(['likes', 'bookmarks', 'reposts'])
+        ])
             ->where('user_id', $userId)
             ->latest()
             ->get()
@@ -198,6 +198,8 @@ class UserController extends Controller
             ],
             'content'         => $original->content,
             'images'          => $original->images,
+            'videos'          => $original->videos,
+            'media'           => $original->media,
             'repost_caption'  => $repost->caption,
             'repost_images'   => $repost->images,
             'created_at'      => $repost->created_at,

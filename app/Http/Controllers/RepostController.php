@@ -108,6 +108,8 @@ class RepostController extends Controller
                     'user' => $repost->user,
                     'content' => $repost->post->content, // original post content
                     'images' => $repost->post->images, // original post images
+                    'videos' => $repost->post->videos, // original post videos
+                    'media' => $repost->post->media,
                     'repost_caption' => $repost->caption, // repost caption (additional)
                     'repost_images' => $repost->images, // repost images (additional)
                     'created_at' => $repost->created_at,
@@ -167,6 +169,8 @@ class RepostController extends Controller
                     ],
                     'content' => $repost->post->content,
                     'images' => $repost->post->images,
+                    'videos' => $repost->post->videos,
+                    'media' => $repost->post->media,
                     'repost_caption' => $repost->caption,
                     'repost_images' => $repost->images,
                     'created_at' => $repost->created_at,

@@ -34,7 +34,7 @@ class PostController extends Controller
         $reposts = $this->getFormattedReposts($userId);
 
         $feed = $posts->merge($reposts)
-            ->sortByDesc(fn ($item) => strtotime($item->created_at))
+            ->sortByDesc(fn($item) => strtotime($item->created_at))
             ->values();
 
         return Inertia::render('Dashboard', [
@@ -50,7 +50,7 @@ class PostController extends Controller
     {
         try {
             $userId = Auth::id();
-            
+
             if (!$userId) {
                 Log::warning('Unauthorized like attempt', ['post_id' => $post->id]);
                 return response()->json(['error' => 'Unauthorized'], 401);
@@ -64,7 +64,7 @@ class PostController extends Controller
 
             // Toggle like
             $exists = $post->likes()->where('user_id', $userId)->exists();
-            
+
             if ($exists) {
                 $post->likes()->detach($userId);
                 $liked = false;
@@ -86,13 +86,12 @@ class PostController extends Controller
                 'liked' => $liked,
                 'likes_count' => $likesCount,
             ]);
-            
         } catch (\Exception $e) {
             Log::error('toggleLike failed', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            
+
             return response()->json([
                 'error' => 'Failed to toggle like',
                 'message' => $e->getMessage()
@@ -107,7 +106,7 @@ class PostController extends Controller
     {
         try {
             $userId = Auth::id();
-            
+
             if (!$userId) {
                 Log::warning('Unauthorized bookmark attempt', ['post_id' => $post->id]);
                 return response()->json(['error' => 'Unauthorized'], 401);
@@ -121,7 +120,7 @@ class PostController extends Controller
 
             // Toggle bookmark
             $exists = $post->bookmarks()->where('user_id', $userId)->exists();
-            
+
             if ($exists) {
                 $post->bookmarks()->detach($userId);
                 $bookmarked = false;
@@ -143,13 +142,12 @@ class PostController extends Controller
                 'bookmarked' => $bookmarked,
                 'bookmarks_count' => $bookmarksCount,
             ]);
-            
         } catch (\Exception $e) {
             Log::error('toggleBookmark failed', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            
+
             return response()->json([
                 'error' => 'Failed to toggle bookmark',
                 'message' => $e->getMessage()
@@ -162,19 +160,100 @@ class PostController extends Controller
      */
     public function store(StoreRequest $request)
     {
-        $imagePaths = $this->handleImages($request);
+        $validated = $request->validated();
+
+        // Validasi total file maksimal 4
+        $totalFiles = 0;
+        if ($request->hasFile('images')) {
+            $totalFiles += count($request->file('images'));
+        }
+        if ($request->hasFile('videos')) {
+            $totalFiles += count($request->file('videos'));
+        }
+
+        if ($totalFiles > 4) {
+            return redirect()->back()->withErrors([
+                'media' => 'You can upload a maximum of 4 files (images and videos combined).'
+            ])->withInput();
+        }
+
+        $imagePaths = [];
+        $videoPaths = [];
+
+        // Handle multiple image uploads
+        if ($request->hasFile('images')) {
+            foreach ($request->file('images') as $image) {
+                $path = $image->store('posts/images', 'public');
+                $imagePaths[] = asset('storage/' . $path);
+            }
+        }
+
+        // Handle video upload
+        if ($request->hasFile('videos')) {
+            foreach ($request->file('videos') as $video) {
+                $path = $video->store('posts/videos', 'public');
+                $videoPaths[] = asset('storage/' . $path);
+            }
+        }
+
+        // Build ordered mixed media if media_order is provided.
+        $media = [];
+        $mediaOrderRaw = $validated['media_order'] ?? null;
+        if (is_string($mediaOrderRaw) && trim($mediaOrderRaw) !== '') {
+            try {
+                $decoded = json_decode($mediaOrderRaw, true, 512, JSON_THROW_ON_ERROR);
+
+                if (is_array($decoded)) {
+                    foreach ($decoded as $item) {
+                        if (!is_array($item)) {
+                            continue;
+                        }
+
+                        $type = $item['type'] ?? null;
+                        $index = $item['index'] ?? null;
+
+                        if (!is_string($type) || !is_numeric($index)) {
+                            continue;
+                        }
+
+                        $index = (int) $index;
+
+                        if ($type === 'image' && isset($imagePaths[$index])) {
+                            $media[] = ['type' => 'image', 'src' => $imagePaths[$index]];
+                        }
+
+                        if ($type === 'video' && isset($videoPaths[$index])) {
+                            $media[] = ['type' => 'video', 'src' => $videoPaths[$index]];
+                        }
+                    }
+                }
+            } catch (\Throwable $e) {
+                // Ignore invalid media_order and fall back to default ordering
+            }
+        }
+
+        if (empty($media)) {
+            foreach ($imagePaths as $src) {
+                $media[] = ['type' => 'image', 'src' => $src];
+            }
+            foreach ($videoPaths as $src) {
+                $media[] = ['type' => 'video', 'src' => $src];
+            }
+        }
 
         $post = Post::create([
             'user_id' => Auth::id(),
-            'content' => $request->content,
-            'images'  => $imagePaths ?: null,
+            'content' => $validated['content'],
+            'images' => !empty($imagePaths) ? $imagePaths : null,
+            'videos' => !empty($videoPaths) ? $videoPaths : null,
+            'media' => !empty($media) ? $media : null,
         ]);
 
-        Log::info('Post created', [
-            'post_id'       => $post->id,
-            'user_id'       => Auth::id(),
-            'content_len'   => strlen($request->content ?? ''),
-            'images_count'  => count($imagePaths),
+        Log::info('Post created successfully', [
+            'post_id' => $post->id,
+            'user_id' => Auth::id(),
+            'images_count' => count($imagePaths),
+            'videos_count' => count($videoPaths),
         ]);
 
         return redirect()->back()->with('success', 'Post created successfully!');
@@ -189,7 +268,7 @@ class PostController extends Controller
         $post->loadCount(['comments', 'likes', 'bookmarks', 'reposts']);
         $post->load([
             'user',
-            'comments' => fn ($q) => $q->with('user')->latest(),
+            'comments' => fn($q) => $q->with('user')->latest(),
         ]);
 
         $post->liked = $userId ? $post->likes()->where('user_id', $userId)->exists() : false;
@@ -231,7 +310,7 @@ class PostController extends Controller
     {
         $userId = Auth::id();
 
-        $posts = Post::whereHas('likes', fn ($q) => $q->where('user_id', $userId))
+        $posts = Post::whereHas('likes', fn($q) => $q->where('user_id', $userId))
             ->with('user')
             ->withCount(['likes', 'bookmarks', 'comments'])
             ->latest()
@@ -256,7 +335,7 @@ class PostController extends Controller
     {
         $userId = Auth::id();
 
-        $posts = Post::whereHas('bookmarks', fn ($q) => $q->where('user_id', $userId))
+        $posts = Post::whereHas('bookmarks', fn($q) => $q->where('user_id', $userId))
             ->with('user')
             ->withCount(['likes', 'bookmarks', 'comments'])
             ->latest()
@@ -288,7 +367,7 @@ class PostController extends Controller
         }
 
         return collect($request->file('images'))
-            ->map(fn ($img) => asset('storage/' . $img->store('posts', 'public')))
+            ->map(fn($img) => asset('storage/' . $img->store('posts', 'public')))
             ->toArray();
     }
 
@@ -309,6 +388,12 @@ class PostController extends Controller
                 $post->likes_count     = $post->likes_count;
                 $post->bookmarks_count = $post->bookmarks_count;
                 $post->reposts_count   = $post->reposts_count;
+
+                // Debug: Log video data
+                if ($post->videos) {
+                    Log::info("Post {$post->id} has videos:", ['videos' => $post->videos]);
+                }
+
                 return $post;
             });
     }
@@ -318,35 +403,39 @@ class PostController extends Controller
      */
     private function getFormattedReposts($userId)
     {
-        return Repost::with(['user', 'post' => fn ($q) =>
+        return Repost::with([
+            'user',
+            'post' => fn($q) =>
             $q->with('user')->withCount(['likes', 'bookmarks', 'reposts'])
         ])
-        ->latest()
-        ->get()
-        ->map(function ($repost) use ($userId) {
-            $post = $repost->post;
+            ->latest()
+            ->get()
+            ->map(function ($repost) use ($userId) {
+                $post = $repost->post;
 
-            return (object) [
-                'id'                => "repost_{$repost->id}",
-                'type'              => 'repost',
-                'repost_id'         => $repost->id,
-                'user_id'           => $repost->user_id,
-                'post_id'           => $post->id,
-                'user'              => $repost->user,
-                'content'           => $post->content,
-                'images'            => $post->images,
-                'repost_caption'    => $repost->caption,
-                'repost_images'     => $repost->images,
-                'created_at'        => $repost->created_at,
-                'original_post_user'=> $post->user,
-                'likes_count'       => $post->likes_count,
-                'bookmarks_count'   => $post->bookmarks_count,
-                'reposts_count'     => $post->reposts_count,
-                'replies_count'     => $post->comments()->count(),
-                'liked'             => $post->likes()->where('user_id', $userId)->exists(),
-                'bookmarked'        => $post->bookmarks()->where('user_id', $userId)->exists(),
-                'reposted'          => $post->reposts()->where('user_id', $userId)->exists(),
-            ];
-        });
+                return (object) [
+                    'id'                => "repost_{$repost->id}",
+                    'type'              => 'repost',
+                    'repost_id'         => $repost->id,
+                    'user_id'           => $repost->user_id,
+                    'post_id'           => $post->id,
+                    'user'              => $repost->user,
+                    'content'           => $post->content,
+                    'images'            => $post->images,
+                    'videos'            => $post->videos,
+                    'media'             => $post->media,
+                    'repost_caption'    => $repost->caption,
+                    'repost_images'     => $repost->images,
+                    'created_at'        => $repost->created_at,
+                    'original_post_user' => $post->user,
+                    'likes_count'       => $post->likes_count,
+                    'bookmarks_count'   => $post->bookmarks_count,
+                    'reposts_count'     => $post->reposts_count,
+                    'replies_count'     => $post->comments()->count(),
+                    'liked'             => $post->likes()->where('user_id', $userId)->exists(),
+                    'bookmarked'        => $post->bookmarks()->where('user_id', $userId)->exists(),
+                    'reposted'          => $post->reposts()->where('user_id', $userId)->exists(),
+                ];
+            });
     }
 }
