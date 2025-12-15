@@ -156,19 +156,6 @@ const openMediaPreview = (index: number, type: 'image' | 'video') => {
     showMediaPreview.value = true;
 };
 
-// Navigate media
-const nextMedia = () => {
-    if (currentMediaIndex.value < previewMedia.value.length - 1) {
-        currentMediaIndex.value++;
-    }
-};
-
-const prevMedia = () => {
-    if (currentMediaIndex.value > 0) {
-        currentMediaIndex.value--;
-    }
-};
-
 // Close preview
 const closeMediaPreview = () => {
     showMediaPreview.value = false;
