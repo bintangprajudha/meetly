@@ -106,6 +106,13 @@ class MessageController extends Controller
                 return null;
             }
 
+            $unreadCount = Message::where('sender_id', $user->id)
+            ->where('receiver_id', $me)
+            ->where('status', '!=', 'read')
+            ->count();
+
+            $isRead = ($lastMessage->sender_id === $me && $lastMessage->status === 'read');
+
             return [
                 'user' => [
                     'id' => $user->id,
@@ -115,7 +122,8 @@ class MessageController extends Controller
                 ],
                 'last_message' => $lastMessage->message ?? null,
                 'last_message_at' => $lastMessage->created_at ?? null,  
-                'is_read' => $lastMessage->sender_id === $user->id && $lastMessage->status === 'read',
+                'is_read' => $isRead,
+                'unread_count' => $unreadCount,
             ];
         })->filter()->values();
 

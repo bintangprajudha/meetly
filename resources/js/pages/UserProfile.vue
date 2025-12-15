@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, router, usePage } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import PostModal from '@/components/PostModal.vue';
 import PostCard from '@/components/PostCard.vue';
 import AppSidebarLayout from '@/layouts/app/AppSidebarLayout.vue';
@@ -35,7 +35,7 @@ interface Post {
     };
 }
 
-// Define props (accept either `user` or `profileUser` depending on server payload)
+// Define props
 const props = defineProps<{
     user?: {
         id: number;
@@ -61,7 +61,6 @@ const props = defineProps<{
 }>();
 
 const isFollowing = ref(props.isFollowing);
-// Normalize profile user: some controllers send `profileUser`, others `user`.
 const profileUser = (props.user ?? (props as any).profileUser) as {
     id: number;
     name: string;
@@ -79,7 +78,37 @@ const authUser = pageTyped.props.auth?.user ?? null;
 const showPostModal = ref(false);
 
 // Active tab state
-const activeTab = ref<'posts' | 'replies' | 'likes'>('posts');
+const activeTab = ref<'posts' | 'replies' | 'highlights' | 'articles' | 'media' | 'likes'>('posts');
+
+// Computed property to filter posts with media (exclude reposts)
+const mediaPosts = computed(() => {
+    return props.posts.filter(post => {
+        // Exclude reposted posts (posts with type 'repost' or posts that have original_post_user)
+        const isRepost = post.type === 'repost' || post.original_post_user;
+        if (isRepost) return false;
+        
+        // Only include posts with images
+        const hasImages = (post.images && post.images.length > 0) || post.image_url;
+        
+        return hasImages;
+    });
+});
+
+// Computed property to combine replies and reposts
+const repliesAndReposts = computed(() => {
+    const replies = props.replies || [];
+    const reposts = props.reposts || [];
+    
+    // Combine both arrays
+    const combined = [...replies, ...reposts];
+    
+    // Sort by created_at (newest first)
+    return combined.sort((a, b) => {
+        const dateA = new Date(a.created_at).getTime();
+        const dateB = new Date(b.created_at).getTime();
+        return dateB - dateA;
+    });
+});
 
 const handlePostCreated = () => {
     // Page will reload via Inertia redirect in controller
@@ -130,7 +159,7 @@ const getAvatarColor = (name: string) => {
 };
 
 // Set active tab
-const setActiveTab = (tab: 'posts' | 'replies' | 'likes') => {
+const setActiveTab = (tab: 'posts' | 'replies' | 'highlights' | 'articles' | 'media' | 'likes') => {
     activeTab.value = tab;
 };
 
@@ -152,200 +181,245 @@ const unfollowUser = async () => {
     });
 };
 
-
-
-
 </script>
 
 <template>
-
-    <Head :title="'/' + (props.user?.name ?? 'Profile')" />
+    <Head :title="profileUser.name" />
 
     <AppSidebarLayout @open-post="openPostModal">
         <AppHeaderLayout>
+            <main class="max-w-2xl mx-auto bg-white min-h-screen">
 
-            <main class="max-w-2xl mx-auto py-8 px-8 sm:px-6 lg:px-8 md:px-10">
+                <!-- Top Bar with Back Button -->
+                <div class="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-gray-200">
+                    <div class="px-4 py-2 flex items-center space-x-8">
+                        <button @click="router.visit('/dashboard')" class="hover:bg-gray-100 rounded-full p-2 -ml-2 transition">
+                            <svg class="w-5 h-5 text-black" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd" />
+                            </svg>
+                        </button>
+                        <div>
+                            <h1 class="text-xl font-bold text-gray-900">{{ profileUser.name }}</h1>
+                            <p class="text-[13px] text-gray-500">{{ props.posts.length }} posts</p>
+                        </div>
+                    </div>
+                </div>
 
-                <!-- Profile Header -->
-                <div class="bg-white rounded-xl shadow border border-[#C9C9C9] overflow-hidden mb-8">
+                <!-- Banner -->
+                <div class="h-[200px] w-full bg-gradient-to-br from-slate-200 via-slate-300 to-slate-200"></div>
 
-                    <!-- Banner -->
-                    <div class="h-44 w-full bg-gradient-to-r from-gray-400 to-gray-510 relative"></div>
-
-                    <!-- Profile Section -->
-                    <div class="px-6 py-6 -mt-20 relative">
-
-                        <div class="flex items-center justify-start space-x-6">
-
-                            <!-- Avatar -->
-                            <div class="w-32 h-32 bg-white rounded-full border-4 border-white shadow-xl flex items-center justify-center text-3xl font-bold text-gray-700"
-                                :style="{ backgroundColor: getAvatarColor(profileUser.name) }">
-                                {{ getInitials(profileUser.name) }}
-                            </div>
-
-                            <!-- User Information -->
-                            <div class="pt-20 ml-3">
-                                <h1 class="text-3xl font-bold text-gray-900">{{ profileUser.name }}</h1>
-                                <p class="text-gray-500 mt-1">@{{ profileUser.name }}</p>
-                                 <p class="text-gray-500 mt-2">Joined on December 2025</p>
-
-                                <!-- Stats -->
-                                <div class="flex items-center space-x-8 mt-4">
-                                    <div class="flex items-center gap-2">
-                                        <p class="font-semibold text-gray-900 text-md">{{ profileUser.followers_count }}
-                                        </p>
-                                        <p class="text-gray-500 text-sm">Followers</p>
-                                    </div>
-                                    <div class="flex items-center gap-2">
-                                        <p class="font-semibold text-gray-900 text-md">{{ profileUser.following_count }}
-                                        </p>
-                                        <p class="text-gray-500 text-sm">Following</p>
-                                    </div>
-                                </div>
-                            </div>
-
+                <!-- Profile Section -->
+                <div class="px-4 pb-4">
+                    <div class="flex items-start justify-between mb-3">
+                        <!-- Avatar -->
+                        <div class="w-[140px] h-[140px] -mt-[75px] bg-white rounded-full border-4 border-white shadow-md flex items-center justify-center text-4xl font-bold overflow-hidden"
+                            :style="{ backgroundColor: getAvatarColor(profileUser.name) }">
+                            {{ getInitials(profileUser.name) }}
                         </div>
 
-                        <!-- Bio -->
-                        <div class="mt-5">
-                            <p class="text-gray-700 text-sm">
-                                Welcome to my profile! I love sharing thoughts and connecting with others.
-                            </p>
-                        </div>
+                        <!-- Action Button -->
+                        <div class="mt-3 flex items-center gap-2">
+                            <!-- Edit Profile Button (for own profile) -->
+                            <button v-if="authUser && authUser.id === profileUser.id"
+                                class="px-4 py-[7px] border border-gray-300 hover:bg-gray-100 text-gray-900 rounded-full font-semibold text-[15px] transition">
+                                Edit profile
+                            </button>
+                            
 
-                        <!-- Follow Button -->
-                        <div v-if="authUser && authUser.id !== profileUser.id" class="mt-6 flex gap-3">
-                            <button v-if="!isFollowing" @click="followUser"
-                                class="px-6 py-2 bg-red-500 hover:bg-red-600 text-white rounded-full font-medium transition">
+                            <button v-if="authUser && authUser.id !== profileUser.id"
+                                class="w-9 h-9 flex items-center justify-center border border-gray-300 hover:bg-gray-100 rounded-full transition">
+                                <svg class="w-5 h-5 text-black" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+                                </svg>
+                            </button>
+
+                            <!-- Follow Button (for other users when not following) -->
+                            <button v-if="authUser && authUser.id !== profileUser.id && !isFollowing" 
+                                @click="followUser"
+                                class="px-5 py-[7px] bg-black hover:bg-gray-800 text-white rounded-full font-semibold text-[15px] transition">
                                 Follow
                             </button>
 
-                            <button v-else @click="unfollowUser"
-                                class="px-6 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-full font-medium transition">
-                                Unfollow
+                            <!-- Following Button (for other users when already following) -->
+                            <button v-if="authUser && authUser.id !== profileUser.id && isFollowing" 
+                                @click="unfollowUser"
+                                class="px-5 py-[7px] border border-gray-300 hover:border-red-600 hover:bg-red-50 text-gray-900 hover:text-red-600 rounded-full font-semibold text-[15px] transition group">
+                                <span class="group-hover:hidden">Following</span>
+                                <span class="hidden group-hover:inline">Unfollow</span>
                             </button>
-                        </div>
 
+                            <!-- More Options Button (three dots) -->
+                            
+                        </div>
+                    </div>
+
+                    <!-- User Information -->
+                    <div class="mb-2">
+                        <div class="flex items-center gap-1 mb-0.5">
+                            <h2 class="text-xl font-bold text-gray-900">{{ profileUser.name }}</h2>
+                            <svg v-if="authUser && authUser.id === profileUser.id" class="w-[18px] h-[18px] text-blue-400" fill="currentColor" viewBox="0 0 22 22">
+                                <path d="M20.396 11c-.018-.646-.215-1.275-.57-1.816-.354-.54-.852-.972-1.438-1.246.223-.607.27-1.264.14-1.897-.131-.634-.437-1.218-.882-1.687-.47-.445-1.053-.75-1.687-.882-.633-.13-1.29-.083-1.897.14-.273-.587-.704-1.086-1.245-1.44S11.647 1.62 11 1.604c-.646.017-1.273.213-1.813.568s-.969.854-1.24 1.44c-.608-.223-1.267-.272-1.902-.14-.635.13-1.22.436-1.69.882-.445.47-.749 1.055-.878 1.688-.13.633-.08 1.29.144 1.896-.587.274-1.087.705-1.443 1.245-.356.54-.555 1.17-.574 1.817.02.647.218 1.276.574 1.817.356.54.856.972 1.443 1.245-.224.606-.274 1.263-.144 1.896.13.634.433 1.218.877 1.688.47.443 1.054.747 1.687.878.633.132 1.29.084 1.897-.136.274.586.705 1.084 1.246 1.439.54.354 1.17.551 1.816.569.647-.016 1.276-.213 1.817-.567s.972-.854 1.245-1.44c.604.239 1.266.296 1.903.164.636-.132 1.22-.447 1.68-.907.46-.46.776-1.044.908-1.681s.075-1.299-.165-1.903c.586-.274 1.084-.705 1.439-1.246.354-.54.551-1.17.569-1.816zM9.662 14.85l-3.429-3.428 1.293-1.302 2.072 2.072 4.4-4.794 1.347 1.246z"></path>
+                            </svg>
+                        </div>
+                        <p class="text-gray-500 text-[15px]">@{{ profileUser.name.replace(/\s+/g, '').toLowerCase() }}</p>
+                    </div>
+
+                    <!-- Join Date -->
+                    <div class="flex items-center text-gray-500 text-[15px] mb-3">
+                        <svg class="w-[17px] h-[17px] mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <span>Joined December 2025</span>
+                    </div>
+
+                    <!-- Stats -->
+                    <div class="flex items-center space-x-5 text-[15px]">
+                        <button class="hover:underline group transition">
+                            <span class="font-bold text-gray-900">{{ profileUser.following_count}}</span>
+                            <span class="text-gray-500 ml-1 group-hover:text-gray-700">Following</span>
+                        </button>
+                        <button class="hover:underline group transition">
+                            <span class="font-bold text-gray-900">{{ profileUser.followers_count}}</span>
+                            <span class="text-gray-500 ml-1 group-hover:text-gray-700">Followers</span>
+                        </button>
                     </div>
                 </div>
 
                 <!-- Navigation Tabs -->
-                <div class="bg-white rounded-xl shadow border border-[#C9C9C9] overflow-hidden">
-
-                    <!-- Tabs -->
-                    <div class="border-b border-[#E5E7EB]">
-                        <nav class="flex">
-
-                            <!-- Posts -->
-                            <button @click="setActiveTab('posts')" :class="[
-                                'flex-1 py-3 text-center font-medium text-sm transition',
-                                activeTab === 'posts'
-                                    ? 'text-red-500 border-b-2 border-red-500'
-                                    : 'text-gray-600 hover:text-gray-800'
+                <div class="border-b border-gray-200 sticky top-[57px] bg-white z-10">
+                    <nav class="flex">
+                        <button @click="setActiveTab('posts')" 
+                            :class="[
+                                'flex-1 py-4 text-center font-medium text-[15px] hover:bg-gray-50/80 transition relative',
+                                activeTab === 'posts' ? 'text-gray-900 font-semibold' : 'text-gray-500'
                             ]">
-                                Posts
-                            </button>
+                            Posts
+                            <div v-if="activeTab === 'posts'" 
+                                class="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-[56px] h-1 bg-blue-500 rounded-full">
+                            </div>
+                        </button>
 
-                            <!-- Reposts -->
-                            <button @click="setActiveTab('replies')" :class="[
-                                'flex-1 py-3 text-center font-medium text-sm transition',
-                                activeTab === 'replies'
-                                    ? 'text-red-500 border-b-2 border-red-500'
-                                    : 'text-gray-600 hover:text-gray-800'
+                        <button @click="setActiveTab('replies')" 
+                            :class="[
+                                'flex-1 py-4 text-center font-medium text-[15px] hover:bg-gray-50/80 transition relative',
+                                activeTab === 'replies' ? 'text-gray-900 font-semibold' : 'text-gray-500'
                             ]">
-                                Reposts
-                            </button>
+                            Replies
+                            <div v-if="activeTab === 'replies'" 
+                                class="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-[56px] h-1 bg-blue-500 rounded-full">
+                            </div>
+                        </button>
 
-                            <!-- Likes -->
-                            <button @click="setActiveTab('likes')" :class="[
-                                'flex-1 py-3 text-center font-medium text-sm transition',
-                                activeTab === 'likes'
-                                    ? 'text-red-500 border-b-2 border-red-500'
-                                    : 'text-gray-600 hover:text-gray-800'
+                        <button @click="setActiveTab('media')" 
+                            :class="[
+                                'flex-1 py-4 text-center font-medium text-[15px] hover:bg-gray-50/80 transition relative',
+                                activeTab === 'media' ? 'text-gray-900 font-semibold' : 'text-gray-500'
                             ]">
-                                Likes
-                            </button>
+                            Media
+                            <div v-if="activeTab === 'media'" 
+                                class="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-[56px] h-1 bg-blue-500 rounded-full">
+                            </div>
+                        </button>
 
-                        </nav>
+                        <button @click="setActiveTab('likes')" 
+                            :class="[
+                                'flex-1 py-4 text-center font-medium text-[15px] hover:bg-gray-50/80 transition relative',
+                                activeTab === 'likes' ? 'text-gray-900 font-semibold' : 'text-gray-500'
+                            ]">
+                            Likes
+                            <div v-if="activeTab === 'likes'" 
+                                class="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-[56px] h-1 bg-blue-500 rounded-full">
+                            </div>
+                        </button>
+                    </nav>
+                </div>
+
+                <!-- Content Panel -->
+                <div class="min-h-[400px]">
+                    <!-- POSTS -->
+                    <div v-if="activeTab === 'posts'">
+                        <div v-if="props.posts.length === 0" class="py-24 text-center px-8">
+                            <h3 class="text-[31px] font-bold text-gray-900 mb-2">No posts yet</h3>
+                        </div>
+                        <div v-else>
+                            <PostCard v-for="post in props.posts" 
+                                :key="post.id" 
+                                :post="post"
+                                :current-user="authUser as any" 
+                                @delete="handleDeletePost"
+                                class="border-b border-gray-200 hover:bg-gray-50/60 transition cursor-pointer" />
+                        </div>
                     </div>
 
-                    <!-- Content Panel -->
-                    <div class="min-h-[330px] px-6 py-10 flex flex-col items-center justify-center text-center">
-
-                        <!-- POSTS EMPTY -->
-                        <div v-if="activeTab === 'posts' && props.posts.length === 0"
-                            class="flex flex-col items-center">
-                            <div
-                                class="w-14 h-14 mb-4 bg-gray-100 rounded-full flex items-center justify-center shadow-sm">
-                                <svg class="w-7 h-7 text-gray-400" fill="none" stroke="currentColor"
-                                    viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                </svg>
-                            </div>
-                            <h3 class="text-lg font-semibold text-gray-800">No posts yet</h3>
-                            <p class="text-gray-500 text-sm">{{ profileUser.name }} hasn't shared anything yet.</p>
+                    <!-- REPLIES -->
+                    <div v-if="activeTab === 'replies'">
+                        <div v-if="repliesAndReposts.length === 0" class="py-24 text-center px-8">
+                            <h3 class="text-[31px] font-bold text-gray-900 mb-2">No replies yet</h3>
+                            <p class="text-gray-500 text-[15px]">When {{ profileUser.name }} replies to posts, they'll show up here</p>
                         </div>
-
-                        <!-- REPLIES EMPTY -->
-                        <div v-if="activeTab === 'replies' && (!props.replies || props.replies.length === 0)"
-                            class="flex flex-col items-center">
-                            <div
-                                class="w-14 h-14 mb-4 bg-gray-100 rounded-full flex items-center justify-center shadow-sm">
-                                <svg class="w-7 h-7 text-gray-400" fill="none" stroke="currentColor"
-                                    viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-                                </svg>
-                            </div>
-                            <h3 class="text-lg font-semibold text-gray-800">No reposts yet</h3>
-                            <p class="text-gray-500 text-sm">{{ profileUser.name }} hasn't reposted anything.</p>
+                        <div v-else>
+                            <PostCard v-for="post in repliesAndReposts" 
+                                :key="post.id" 
+                                :post="post"
+                                :current-user="authUser as any" 
+                                @delete="handleDeletePost"
+                                class="border-b border-gray-200 hover:bg-gray-50/60 transition cursor-pointer" />
                         </div>
-
-                        <!-- LIKES EMPTY -->
-                        <div v-if="activeTab === 'likes' && (!props.likedPosts || props.likedPosts.length === 0)"
-                            class="flex flex-col items-center">
-                            <div
-                                class="w-14 h-14 mb-4 bg-gray-100 rounded-full flex items-center justify-center shadow-sm">
-                                <svg class="w-7 h-7 text-gray-400" fill="none" stroke="currentColor"
-                                    viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                                </svg>
-                            </div>
-                            <h3 class="text-lg font-semibold text-gray-800">No likes yet</h3>
-                            <p class="text-gray-500 text-sm">{{ profileUser.name }} hasn't liked any posts.</p>
-                        </div>
-
-                        <!-- ACTUAL POSTS (KEEP ORIGINAL STRUCTURE) -->
-                        <div v-if="activeTab === 'posts' && props.posts.length > 0"
-                            class="w-full divide-y divide-[#C9C9C9] mt-4">
-                            <PostCard v-for="post in props.posts" :key="post.id" :post="post"
-                                :current-user="authUser as any" @delete="handleDeletePost"
-                                class="border-none hover:bg-gray-50 transition" />
-                        </div>
-
-                        <div v-if="activeTab === 'replies' && props.replies && props.replies.length > 0"
-                            class="w-full divide-y divide-[#C9C9C9] mt-4">
-                            <PostCard v-for="post in props.replies" :key="post.id" :post="post"
-                                :current-user="authUser as any" @delete="handleDeletePost"
-                                class="border-none hover:bg-gray-50 transition" />
-                        </div>
-
-                        <div v-if="activeTab === 'likes' && props.likedPosts && props.likedPosts.length > 0"
-                            class="w-full divide-y divide-[#C9C9C9] mt-4">
-                            <PostCard v-for="post in props.likedPosts" :key="post.id" :post="post"
-                                :current-user="authUser as any" @delete="handleDeletePost"
-                                class="border-none hover:bg-gray-50 transition" />
-                        </div>
-
                     </div>
 
+                    <!-- MEDIA -->
+                    <div v-if="activeTab === 'media'">
+                        <div v-if="mediaPosts.length === 0" class="py-24 text-center px-8">
+                            <h3 class="text-[31px] font-bold text-gray-900 mb-2">No media yet</h3>
+                            <p class="text-gray-500 text-[15px]">Photos and videos will show up here</p>
+                        </div>
+                        <div v-else class="grid grid-cols-3 gap-1 p-1">
+                            <template v-for="post in mediaPosts" :key="post.id">
+                                <!-- Handle multiple images in a post -->
+                                <template v-if="post.images && post.images.length > 0">
+                                    <div v-for="(image, index) in post.images" 
+                                        :key="`${post.id}-${index}`"
+                                        @click="router.visit(`/posts/${post.id}`)"
+                                        class="relative aspect-square bg-gray-200 overflow-hidden cursor-pointer group">
+                                        <img :src="image" 
+                                            :alt="`Media ${index + 1}`"
+                                            class="w-full h-full object-cover group-hover:opacity-90 transition" />
+                                    </div>
+                                </template>
+                                <!-- Handle single image_url -->
+                                <div v-else-if="post.image_url"
+                                    @click="router.visit(`/posts/${post.id}`)"
+                                    class="relative aspect-square bg-gray-200 overflow-hidden cursor-pointer group">
+                                    <img :src="post.image_url" 
+                                        alt="Media"
+                                        class="w-full h-full object-cover group-hover:opacity-90 transition" />
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- LIKES -->
+                    <div v-if="activeTab === 'likes'">
+                        <div v-if="!props.likedPosts || props.likedPosts.length === 0" class="py-24 text-center px-8">
+                            <h3 class="text-[31px] font-bold text-gray-900 mb-2">No likes yet</h3>
+                            <p class="text-gray-500 text-[15px]">When {{ profileUser.name }} likes a post, it'll show up here</p>
+                        </div>
+                        <div v-else>
+                            <PostCard v-for="post in props.likedPosts" 
+                                :key="post.id" 
+                                :post="post"
+                                :current-user="authUser as any" 
+                                @delete="handleDeletePost"
+                                class="border-b border-gray-200 hover:bg-gray-50/60 transition cursor-pointer" />
+                        </div>
+                    </div>
                 </div>
 
             </main>
 
-            <PostModal :is-open="showPostModal" :user="authUser as any" @close="showPostModal = false"
+            <PostModal :is-open="showPostModal" 
+                :user="authUser as any" 
+                @close="showPostModal = false"
                 @posted="handlePostCreated" />
 
         </AppHeaderLayout>

@@ -20,9 +20,6 @@ use Illuminate\Validation\ValidationException;
  * - Toggling likes & bookmarks
  * - Showing post detail
  * - Listing liked & bookmarked posts
- *
- * Heavy logic (feed transform, toggle logic) moved into private helpers
- * to keep controller clean and readable.
  */
 class PostController extends Controller
 {
@@ -51,17 +48,56 @@ class PostController extends Controller
      */
     public function toggleLike(Post $post)
     {
-        $userId = Auth::id();
-        $this->ensureAuthenticated($userId);
+        try {
+            $userId = Auth::id();
+            
+            if (!$userId) {
+                Log::warning('Unauthorized like attempt', ['post_id' => $post->id]);
+                return response()->json(['error' => 'Unauthorized'], 401);
+            }
 
-        Log::info('toggleLike triggered', compact('userId') + ['post_id' => $post->id]);
+            Log::info('toggleLike triggered', [
+                'user_id' => $userId,
+                'post_id' => $post->id,
+                'csrf_token' => request()->header('X-CSRF-TOKEN') ? 'present' : 'missing'
+            ]);
 
-        $liked = $this->toggleRelation($post->likes(), $userId);
+            // Toggle like
+            $exists = $post->likes()->where('user_id', $userId)->exists();
+            
+            if ($exists) {
+                $post->likes()->detach($userId);
+                $liked = false;
+            } else {
+                $post->likes()->attach($userId);
+                $liked = true;
+            }
 
-        return response()->json([
-            'liked'       => $liked,
-            'likes_count' => $post->likes()->count(),
-        ]);
+            // Get fresh count
+            $likesCount = $post->likes()->count();
+
+            Log::info('toggleLike success', [
+                'liked' => $liked,
+                'likes_count' => $likesCount
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'liked' => $liked,
+                'likes_count' => $likesCount,
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('toggleLike failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'error' => 'Failed to toggle like',
+                'message' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -69,17 +105,56 @@ class PostController extends Controller
      */
     public function toggleBookmark(Post $post)
     {
-        $userId = Auth::id();
-        $this->ensureAuthenticated($userId);
+        try {
+            $userId = Auth::id();
+            
+            if (!$userId) {
+                Log::warning('Unauthorized bookmark attempt', ['post_id' => $post->id]);
+                return response()->json(['error' => 'Unauthorized'], 401);
+            }
 
-        Log::info('toggleBookmark triggered', compact('userId') + ['post_id' => $post->id]);
+            Log::info('toggleBookmark triggered', [
+                'user_id' => $userId,
+                'post_id' => $post->id,
+                'csrf_token' => request()->header('X-CSRF-TOKEN') ? 'present' : 'missing'
+            ]);
 
-        $bookmarked = $this->toggleRelation($post->bookmarks(), $userId);
+            // Toggle bookmark
+            $exists = $post->bookmarks()->where('user_id', $userId)->exists();
+            
+            if ($exists) {
+                $post->bookmarks()->detach($userId);
+                $bookmarked = false;
+            } else {
+                $post->bookmarks()->attach($userId);
+                $bookmarked = true;
+            }
 
-        return response()->json([
-            'bookmarked'       => $bookmarked,
-            'bookmarks_count'  => $post->bookmarks()->count(),
-        ]);
+            // Get fresh count
+            $bookmarksCount = $post->bookmarks()->count();
+
+            Log::info('toggleBookmark success', [
+                'bookmarked' => $bookmarked,
+                'bookmarks_count' => $bookmarksCount
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'bookmarked' => $bookmarked,
+                'bookmarks_count' => $bookmarksCount,
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('toggleBookmark failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'error' => 'Failed to toggle bookmark',
+                'message' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -110,11 +185,17 @@ class PostController extends Controller
      */
     public function show(Post $post)
     {
-        $post->loadCount('comments');
+        $userId = Auth::id();
+        $post->loadCount(['comments', 'likes', 'bookmarks', 'reposts']);
         $post->load([
             'user',
             'comments' => fn ($q) => $q->with('user')->latest(),
         ]);
+
+        $post->liked = $userId ? $post->likes()->where('user_id', $userId)->exists() : false;
+        $post->bookmarked = $userId ? $post->bookmarks()->where('user_id', $userId)->exists() : false;
+        $post->reposted = $userId ? $post->reposts()->where('user_id', $userId)->exists() : false;
+        $post->replies_count = $post->comments_count;
 
         return Inertia::render('PostDetail', [
             'post' => $post,
@@ -194,31 +275,8 @@ class PostController extends Controller
     }
 
     /* -------------------------------------------------------
-     | Private Helper Methods (Clean Architecture)
+     | Private Helper Methods
      ------------------------------------------------------- */
-
-    /**
-     * Ensure the user is authenticated.
-     */
-    private function ensureAuthenticated($userId)
-    {
-        if (! $userId) {
-            abort(401, 'Unauthorized');
-        }
-    }
-
-    /**
-     * Toggle pivot relation (like/bookmark).
-     */
-    private function toggleRelation($relation, $userId)
-    {
-        $exists = $relation->where('user_id', $userId)->exists();
-
-        $exists ? $relation->detach($userId)
-                : $relation->attach($userId);
-
-        return ! $exists;
-    }
 
     /**
      * Handle multiple image uploads.

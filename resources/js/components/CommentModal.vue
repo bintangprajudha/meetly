@@ -76,7 +76,7 @@ const handleKeydown = (event: KeyboardEvent) => {
 <template>
     <div
         v-if="props.isOpen"
-        class="bg-opacity-30 fixed inset-0 z-50 flex items-center justify-center bg-gray-400 backdrop-blur-sm"
+        class="bg-opacity-30 fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm"
         @click.self="closeModal"
         @keydown="handleKeydown"
         tabindex="0"
