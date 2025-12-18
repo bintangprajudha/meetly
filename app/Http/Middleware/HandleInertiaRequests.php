@@ -2,9 +2,10 @@
 
 namespace App\Http\Middleware;
 
-use Illuminate\Foundation\Inspiring;
-use Illuminate\Http\Request;
+use App\Models\Message;
 use Inertia\Middleware;
+use Illuminate\Http\Request;
+use Illuminate\Foundation\Inspiring;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -45,6 +46,17 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
             ],
+
+            'unreadNotifications' => $request->user() 
+                ? $request->user()->unreadNotifications()->count() 
+                : 0,
+            // Add unread messages count
+            'unreadMessages' => $request->user() 
+                ? Message::where('receiver_id', $request->user()->id)
+                    ->where('status', '!=', 'read')
+                    ->count()
+                : 0,
+
             // 'csrf_token' => csrf_token(),
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             'flash' => [
