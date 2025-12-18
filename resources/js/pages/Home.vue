@@ -25,8 +25,7 @@ import { Link } from '@inertiajs/vue3';
         <!-- Title -->
         <h1 class="text-8xl font-extrabold text-[#D84040] tracking-wide">MEETLY</h1>
         <p class="text-center font-extrabold mt-4 text-[#D84040] max-w-6xl text-lg">
-            Selamat datang di Meetly — ruang digital untuk berbagi inspirasi, meningkatkan pertemanan,
-            dan membangun masa depan.
+            Welcome to Meetly — a digital space for sharing inspiration, fostering friendships, and building the future.
         </p>
 
 

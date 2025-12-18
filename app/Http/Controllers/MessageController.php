@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\Post;
 use Inertia\Inertia;
 use App\Models\Message;
 use App\Events\NewMessage;
@@ -10,7 +11,6 @@ use App\Events\MessageRead;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
-
 
 class MessageController extends Controller
 {
@@ -40,8 +40,26 @@ class MessageController extends Controller
                 $q->where('sender_id', $user->id)
                     ->where('receiver_id', $me);
             })
+            ->with(['sharedPost.user']) // Load shared post dengan user
             ->orderBy('created_at')
-            ->get();
+            ->get()
+            ->map(function ($message) {
+                // Format shared post data untuk frontend
+                if ($message->sharedPost) {
+                    $message->shared_post = [
+                        'id' => $message->sharedPost->id,
+                        'user_name' => $message->sharedPost->user->name,
+                        'user_avatar' => $message->sharedPost->user->avatar,
+                        'content' => $message->sharedPost->content,
+                        'images' => $message->sharedPost->images,
+                        'videos' => $message->sharedPost->videos,
+                        'created_at' => $message->sharedPost->created_at,
+                        'likes_count' => $message->sharedPost->likes()->count(),
+                        'comments_count' => $message->sharedPost->comments()->count(),
+                    ];
+                }
+                return $message;
+            });
 
         Message::where('sender_id', $user->id)
             ->where('receiver_id', $me)
@@ -58,14 +76,32 @@ class MessageController extends Controller
         if ($request->receiver_id == $me) {
             return response()->json(['error' => 'Cannot send message to yourself'], 403);
         }
+
         $message = Message::create([
             'sender_id'   => Auth::id(),
             'receiver_id' => $request->receiver_id,
             'message'     => $request->message,
             'status'      => 'sent',
+            'shared_post_id' => $request->shared_post_id ?? null,
         ]);
 
-        broadcast(new NewMessage($message))->toOthers(); // realtime
+        // Load shared post data
+        if ($message->shared_post_id) {
+            $message->load(['sharedPost.user']);
+            $message->shared_post = [
+                'id' => $message->sharedPost->id,
+                'user_name' => $message->sharedPost->user->name,
+                'user_avatar' => $message->sharedPost->user->avatar,
+                'content' => $message->sharedPost->content,
+                'images' => $message->sharedPost->images,
+                'videos' => $message->sharedPost->videos,
+                'created_at' => $message->sharedPost->created_at,
+                'likes_count' => $message->sharedPost->likes()->count(),
+                'comments_count' => $message->sharedPost->comments()->count(),
+            ];
+        }
+
+        broadcast(new NewMessage($message))->toOthers();
         event(new NewMessage($message));
 
         return $message;
@@ -99,6 +135,7 @@ class MessageController extends Controller
                 ->orWhere(function ($q) use ($me, $user) {
                     $q->where('sender_id', $user->id)->where('receiver_id', $me);
                 })
+                ->with('sharedPost')
                 ->orderBy('id', 'DESC')
                 ->first();
 
@@ -113,14 +150,20 @@ class MessageController extends Controller
 
             $isRead = ($lastMessage->sender_id === $me && $lastMessage->status === 'read');
 
+            // Format last message untuk menampilkan "Shared a post" jika ada shared_post_id
+            $lastMessageText = $lastMessage->message;
+            if ($lastMessage->shared_post_id) {
+                $lastMessageText = '📄 Shared a post';
+            }
+
             return [
                 'user' => [
                     'id' => $user->id,
                     'name' => $user->name,
                     'email' => $user->email,
-                    'avatar' => null,
+                    'avatar' => $user->avatar,
                 ],
-                'last_message' => $lastMessage->message ?? null,
+                'last_message' => $lastMessageText,
                 'last_message_at' => $lastMessage->created_at ?? null,
                 'is_read' => $isRead,
                 'unread_count' => $unreadCount,
@@ -135,7 +178,7 @@ class MessageController extends Controller
         $me = Auth::id();
 
         $users = User::where('id', '!=', $me)
-            ->select('id', 'name', 'email',)
+            ->select('id', 'name', 'email', 'avatar')
             ->orderBy('name')
             ->get();
 
@@ -158,13 +201,11 @@ class MessageController extends Controller
     {
         $me = Auth::id();
 
-        // update pesan menjadi read
         $updated = Message::where('sender_id', $user->id)
             ->where('receiver_id', $me)
             ->where('status', '!=', 'read')
             ->update(['status' => 'read']);
 
-        // ambil pesan yang sudah read untuk broadcast
         $messages = Message::where('sender_id', $user->id)
             ->where('receiver_id', $me)
             ->where('status', 'read')
@@ -178,19 +219,16 @@ class MessageController extends Controller
         return $updated;
     }
 
-
     public function destroy(Message $message)
     {
         if ($message->sender_id != Auth::id()) {
             abort(403, 'Unauthorized');
         }
 
-        // hard delete
         $message->delete();
 
-        return true; // simple, clean, sama seperti send()
+        return true;
     }
-
 
     public function sharePost(Request $request)
     {
@@ -199,49 +237,55 @@ class MessageController extends Controller
                 'post_id' => 'required|exists:posts,id',
                 'user_ids' => 'required|array|min:1',
                 'user_ids.*' => 'exists:users,id',
+                'message' => 'nullable|string', // Optional message dari user
             ]);
 
-            $post = \App\Models\Post::findOrFail($request->post_id);
+            $post = Post::findOrFail($request->post_id);
             $senderId = Auth::id();
 
             $messages = [];
             $sharedCount = 0;
 
             foreach ($request->user_ids as $userId) {
-                // Skip if trying to share with self
+                // Skip jika share ke diri sendiri
                 if ($userId == $senderId) continue;
-
-                // Build message content with post details
-                $messageContent = "Shared a post: \"{$post->content}\"";
-                if ($post->images && count($post->images) > 0) {
-                    $messageContent .= "\n\n[Images: " . count($post->images) . " attached]";
-                }
-                if ($post->videos && count($post->videos) > 0) {
-                    $messageContent .= "\n[Videos: " . count($post->videos) . " attached]";
-                }
 
                 $message = Message::create([
                     'sender_id' => $senderId,
                     'receiver_id' => $userId,
-                    'message' => $messageContent,
-                    'images' => $post->images, // Include images from the post
-                    'videos' => $post->videos, // Include videos from the post
+                    'message' => $request->message ?? '', // Message opsional dari user
+                    'shared_post_id' => $post->id,
+                    'status' => 'sent',
                 ]);
+
+                // Load shared post data
+                $message->load(['sharedPost.user']);
+                $message->shared_post = [
+                    'id' => $message->sharedPost->id,
+                    'user_name' => $message->sharedPost->user->name,
+                    'user_avatar' => $message->sharedPost->user->avatar,
+                    'content' => $message->sharedPost->content,
+                    'images' => $message->sharedPost->images,
+                    'videos' => $message->sharedPost->videos,
+                    'created_at' => $message->sharedPost->created_at,
+                    'likes_count' => $message->sharedPost->likes()->count(),
+                    'comments_count' => $message->sharedPost->comments()->count(),
+                ];
 
                 $messages[] = $message;
                 $sharedCount++;
 
-                // Broadcast the message
+                // Broadcast message
                 broadcast(new NewMessage($message))->toOthers();
             }
 
-            $message = $sharedCount > 0
+            $responseMessage = $sharedCount > 0
                 ? "Post shared successfully with {$sharedCount} user" . ($sharedCount > 1 ? 's' : '') . "!"
                 : "No posts were shared.";
 
             return response()->json([
                 'success' => $sharedCount > 0,
-                'message' => $message,
+                'message' => $responseMessage,
                 'shared_count' => $sharedCount,
                 'messages' => $messages,
             ]);

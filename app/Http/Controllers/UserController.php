@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
 use App\Models\Post;
-use App\Models\Repost;
-use Illuminate\Support\Facades\Auth;
+use App\Models\User;
 use Inertia\Inertia;
+use App\Models\Repost;
+use Inertia\Response;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
 
 /**
  * Controller for handling user profile pages and all related
@@ -24,7 +26,39 @@ class UserController extends Controller
      */
     public function apiIndex()
     {
-        return User::select('id', 'name', 'avatar')->get();
+        try {
+            /** @var \App\Models\User|null $currentUser */
+            $currentUser = Auth::user();
+            
+            // Make sure user is authenticated
+            if (!$currentUser) {
+                return response()->json([
+                    'message' => 'Unauthenticated'
+                ], 401);
+            }
+
+            $users = User::select('id', 'name', 'email')
+                ->where('id', '!=', $currentUser->id)
+                ->orderBy('name', 'asc')
+                ->get()
+                ->map(function ($user) {
+                    return [
+                        'id' => $user->id,
+                        'name' => $user->name,
+                        'avatar' => $user->email // Atau bisa: $user->avatar ?? '/default-avatar.png'
+                    ];
+                });
+
+            return response()->json($users);
+        } catch (\Exception $e) {
+            Log::error('Failed to fetch users in apiIndex: ' . $e->getMessage());
+            Log::error($e->getTraceAsString());
+            
+            return response()->json([
+                'message' => 'Failed to fetch users',
+                'error' => app()->environment('local') ? $e->getMessage() : 'Server error'
+            ], 500);
+        }
     }
 
     /**
@@ -62,6 +96,112 @@ class UserController extends Controller
         ]);
     }
 
+    public function edit()
+    {
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+
+        if (!$user) {
+            return redirect()->route('login')->with('error', 'Anda harus login terlebih dahulu.');
+        }
+
+        return Inertia::render('components/EditProfile', [
+            'user' => $user
+        ]);
+    }
+
+    /**
+     * Display followers of a user
+     *
+     * @param User $user
+     * @return Response
+     */
+    public function followers(User $user): Response
+    {
+        /** @var User|null $authUser */
+        $authUser = Auth::user();
+
+        $followers = $user->followers()
+            ->get()
+            ->map(function (User $follower) use ($authUser): array {
+                return [
+                    'id' => $follower->id,
+                    'name' => $follower->name,
+                    'email' => $follower->email,
+                    'avatar' => $follower->avatar,
+                    'bio' => $follower->bio ?? null,
+                    'followers_count' => $follower->followers()->count(),
+                    'following_count' => $follower->following()->count(),
+                    'is_following' => $authUser !== null && 
+                        $authUser->following()
+                            ->where('followed_user_id', $follower->id)
+                            ->exists(),
+                ];
+            })
+            ->toArray();
+
+        return Inertia::render('FollowersFollowing', [
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'avatar' => $user->avatar,
+                'bio' => $user->bio ?? null,
+                'followers_count' => $user->followers()->count(),
+                'following_count' => $user->following()->count(),
+            ],
+            'followers' => $followers,
+            'following' => [],
+            'initialTab' => 'followers',
+        ]);
+    }
+
+    /**
+     * Display users that a user is following
+     *
+     * @param User $user
+     * @return Response
+     */
+    public function following(User $user): Response
+    {
+        /** @var User|null $authUser */
+        $authUser = Auth::user();
+
+        $following = $user->following()
+            ->get()
+            ->map(function (User $followingUser) use ($authUser): array {
+                return [
+                    'id' => $followingUser->id,
+                    'name' => $followingUser->name,
+                    'email' => $followingUser->email,
+                    'avatar' => $followingUser->avatar,
+                    'bio' => $followingUser->bio ?? null,
+                    'followers_count' => $followingUser->followers()->count(),
+                    'following_count' => $followingUser->following()->count(),
+                    'is_following' => $authUser !== null && 
+                        $authUser->following()
+                            ->where('followed_user_id', $followingUser->id)
+                            ->exists(),
+                ];
+            })
+            ->toArray();
+
+        return Inertia::render('FollowersFollowing', [
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'avatar' => $user->avatar,
+                'bio' => $user->bio ?? null,
+                'followers_count' => $user->followers()->count(),
+                'following_count' => $user->following()->count(),
+            ],
+            'followers' => [],
+            'following' => $following,
+            'initialTab' => 'following',
+        ]);
+    }
+   
     /**
      * Fetch profile owner with follower/following count.
      */

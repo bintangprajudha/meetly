@@ -10,6 +10,7 @@ use App\Http\Controllers\FollowController;
 use App\Http\Controllers\RepostController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\MessageController;
+use App\Http\Controllers\NotificationController;
 
 Route::get('/', function () {
     return Inertia::render('Home');
@@ -95,6 +96,16 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('/api/users', [UserController::class, 'apiIndex'])->name('users.api.index');
 
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::get('/notifications/unread', [NotificationController::class, 'unread'])->name('notifications.unread');
+    Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount'])->name('notifications.unreadCount');
+    Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead'])->name('notifications.markAsRead');
+    Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead'])->name('notifications.markAllAsRead');
+    Route::delete('/notifications/{id}', [NotificationController::class, 'destroy'])->name('notifications.destroy');
+
+    Route::get('/{user:name}/followers', [UserController::class, 'followers'])->name('user.followers');
+    Route::get('/{user:name}/following', [UserController::class, 'following'])->name('user.following');
+    Route::get('/profile/edit', [UserController::class, 'edit'])->name('profile.edit');
 });
 
 Route::get('/users/{user}/followers', [FollowController::class, 'followers'])->name('users.followers');

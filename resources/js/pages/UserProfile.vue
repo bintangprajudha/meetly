@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import PostCard from '@/components/PostCard.vue';
 import PostModal from '@/components/PostModal.vue';
-import AppHeaderLayout from '@/layouts/app/AppHeaderLayout.vue';
+// import AppHeaderLayout from '@/layouts/app/AppHeaderLayout.vue';
 import AppSidebarLayout from '@/layouts/app/AppSidebarLayout.vue';
-import { Head, router, usePage } from '@inertiajs/vue3';
+import { Head, router, usePage, Link } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 
 // Define types
@@ -179,7 +179,7 @@ const getAvatarColor = (name: string) => {
 
 // Set active tab
 const setActiveTab = (
-    tab: 'posts' | 'replies' | 'highlights' | 'articles' | 'media' | 'likes',
+    tab: 'posts' | 'replies' |  'media' | 'likes',
 ) => {
     activeTab.value = tab;
 };
@@ -208,10 +208,10 @@ const unfollowUser = async () => {
 </script>
 
 <template>
-    <Head :title="profileUser.name" />
+    <Head/>
 
     <AppSidebarLayout @open-post="openPostModal">
-        <AppHeaderLayout>
+        <!-- <AppHeaderLayout> -->
             <main class="mx-auto min-h-screen max-w-2xl bg-white">
                 <!-- Top Bar with Back Button -->
                 <div
@@ -376,27 +376,34 @@ const unfollowUser = async () => {
                         </svg>
                         <span>Joined December 2025</span>
                     </div>
-
-                    <!-- Stats -->
+                    
+                    <!-- Stats dengan Link ke Followers/Following -->
                     <div class="flex items-center space-x-5 text-[15px]">
-                        <button class="group transition hover:underline">
-                            <span class="font-bold text-gray-900">{{
-                                profileUser.following_count
-                            }}</span>
-                            <span
-                                class="ml-1 text-gray-500 group-hover:text-gray-700"
-                                >Following</span
-                            >
-                        </button>
-                        <button class="group transition hover:underline">
-                            <span class="font-bold text-gray-900">{{
-                                profileUser.followers_count
-                            }}</span>
-                            <span
-                                class="ml-1 text-gray-500 group-hover:text-gray-700"
-                                >Followers</span
-                            >
-                        </button>
+                        <!-- Following Button -->
+                        <Link 
+                            :href="`/${profileUser.name}/following`" 
+                            class="group transition hover:underline"
+                        >
+                            <span class="font-bold text-gray-900">
+                                {{ profileUser.following_count || 0 }}
+                            </span>
+                            <span class="ml-1 text-gray-500 group-hover:text-gray-700">
+                                Following
+                            </span>
+                        </Link>
+
+                        <!-- Followers Button -->
+                        <Link 
+                            :href="`/${profileUser.name}/followers`" 
+                            class="group transition hover:underline"
+                        >
+                            <span class="font-bold text-gray-900">
+                                {{ profileUser.followers_count || 0 }}
+                            </span>
+                            <span class="ml-1 text-gray-500 group-hover:text-gray-700">
+                                Followers
+                            </span>
+                        </Link>
                     </div>
                 </div>
 
@@ -616,6 +623,5 @@ const unfollowUser = async () => {
                 @close="showPostModal = false"
                 @posted="handlePostCreated"
             />
-        </AppHeaderLayout>
     </AppSidebarLayout>
 </template>

@@ -22,9 +22,9 @@ const submit = () => {
     <AuthLayout>
         <div class="w-full max-w-2xl bg-white rounded-2xl shadow-xl p-14">
 
-    <h2 class="text-4xl font-bold text-gray-900">Selamat Datang</h2>
+    <h2 class="text-4xl font-bold text-gray-900">Welcome Back</h2>
     <p class="text-gray-600 text-lg mb-10">
-        Masuk untuk melanjutkan akunmu
+        Sign in to continue to your account
     </p>
 
     <form @submit.prevent="submit" class="space-y-7">
@@ -87,7 +87,7 @@ const submit = () => {
             </div>
         </div>
 
-        <!-- REMEMBER + LUPA -->
+        <!-- REMEMBER + FORGOT -->
         <div class="flex items-center justify-between text-lg">
             <label class="flex items-center">
                 <input
@@ -95,29 +95,29 @@ const submit = () => {
                     type="checkbox"
                     class="h-5 w-5 rounded border-gray-300 text-red-600 focus:ring-red-500"
                 />
-                <span class="ml-2 text-gray-700">Ingat Saya</span>
+                <span class="ml-2 text-gray-700">Remember Me</span>
             </label>
 
             <Link href="#" class="text-red-600 hover:text-red-500">
-                Lupa Password?
+                Forgot Password?
             </Link>
         </div>
 
-        <!-- BUTTON LOGIN -->
+        <!-- LOGIN BUTTON -->
         <button
             type="submit"
             :disabled="form.processing"
             class="w-full rounded-lg bg-[#e54c4c] px-5 py-4 text-lg text-white font-semibold shadow
                    hover:bg-red-700 disabled:opacity-50"
         >
-            <span v-if="form.processing">Memproses...</span>
+            <span v-if="form.processing">Processing...</span>
             <span v-else>Login</span>
         </button>
     </form>
 
     <!-- SOCIAL -->
     <div class="mt-12 text-center">
-        <p class="text-base text-gray-500 mb-4">Atau lanjutkan dengan</p>
+        <p class="text-base text-gray-500 mb-4">Or continue with</p>
 
         <div class="flex justify-center space-x-5">
             <button class="w-12 h-12 rounded-full bg-white border shadow flex items-center justify-center text-blue-600 text-xl">F</button>
@@ -126,9 +126,9 @@ const submit = () => {
         </div>
 
         <p class="mt-8 text-lg text-gray-600">
-            Belum punya akun?
+            Don't have an account?
             <Link href="/register" class="text-red-600 font-medium hover:text-red-700">
-                Daftar sekarang
+                Register now
             </Link>
         </p>
     </div>
@@ -136,5 +136,3 @@ const submit = () => {
 </div>
     </AuthLayout>
 </template>
-
-

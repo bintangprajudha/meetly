@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Post;
 use App\Models\Repost;
+use App\Models\Notification;
 use Inertia\Inertia;
 use Illuminate\Http\Request;
 use App\Http\Requests\PostController\StoreRequest;
@@ -68,9 +69,36 @@ class PostController extends Controller
             if ($exists) {
                 $post->likes()->detach($userId);
                 $liked = false;
+
+                 Notification::where('user_id', $post->user_id)
+                    ->where('actor_id', $userId)
+                    ->where('type', 'like')
+                    ->where('notifiable_id', $post->id)
+                    ->where('notifiable_type', Post::class)
+                    ->delete();
+
+                Log::info('Like notification deleted', [
+                    'post_owner' => $post->user_id,
+                    'actor' => $userId,
+                ]);
             } else {
                 $post->likes()->attach($userId);
                 $liked = true;
+
+                if ($post->user_id !== $userId) {
+                    Notification::create([
+                        'user_id' => $post->user_id,
+                        'actor_id' => $userId,
+                        'type' => 'like',
+                        'notifiable_id' => $post->id,
+                        'notifiable_type' => Post::class,
+                    ]);
+
+                    Log::info('Like notification created', [
+                        'post_owner' => $post->user_id,
+                        'actor' => $userId,
+                    ]);
+                }
             }
 
             // Get fresh count

@@ -3,9 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
-use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
+use App\Models\Notification;
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Auth;
 
 class FollowController extends Controller
 {
@@ -27,6 +28,15 @@ class FollowController extends Controller
         }
 
         $me->follow($user);
+
+        Notification::create([
+            'user_id' => $user->id, // penerima notifikasi
+            'actor_id' => $me->id, // yang follow
+            'type' => 'follow',
+            'data' => [
+                'message' => $me->name . ' mulai mengikuti Anda'
+            ]
+        ]);
 
         return redirect()->back()->with('success', 'Berhasil mengikuti ' . $user->name);
     }

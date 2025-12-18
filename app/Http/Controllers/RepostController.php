@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Post;
 use App\Models\Repost;
+use App\Models\Notification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -49,6 +50,17 @@ class RepostController extends Controller
         // Update reposts_count on original post
         $post->increment('reposts_count');
 
+        // Buat notifikasi repost (jangan notif diri sendiri)
+        if ($post->user_id !== $userId) {
+            Notification::create([
+                'user_id' => $post->user_id,
+                'actor_id' => $userId,
+                'type' => 'repost',
+                'notifiable_id' => $post->id,
+                'notifiable_type' => Post::class,
+            ]);
+        }
+
         // If request expects JSON (AJAX), return JSON; otherwise redirect back for Inertia
         if ($request->wantsJson()) {
             return response()->json([
@@ -72,6 +84,15 @@ class RepostController extends Controller
         }
 
         $post = $repost->post;
+        
+        // Hapus notifikasi repost
+        Notification::where('user_id', $post->user_id)
+            ->where('actor_id', $userId)
+            ->where('type', 'repost')
+            ->where('notifiable_id', $post->id)
+            ->where('notifiable_type', Post::class)
+            ->delete();
+
         $repost->delete();
 
         // Update reposts_count on original post
