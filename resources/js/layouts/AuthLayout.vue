@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
 
-interface Props {
-    title?: string;
-}
+// interface Props {
+//     title?: string;
+// }
 
-withDefaults(defineProps<Props>(), {
-    title: 'Authentication',
-});
+// withDefaults(defineProps<Props>(), {
+//     title: 'Authentication',
+// });
 </script>
 
 <template>

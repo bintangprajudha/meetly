@@ -26,6 +26,7 @@ const selectedUsers = ref<number[]>([]);
 const users = ref<{ id: number; name: string; avatar?: string }[]>([]);
 const loading = ref(false);
 const sharing = ref(false);
+const failedAvatars = ref<Set<number>>(new Set());
 
 const filteredUsers = computed(() => {
     if (!searchQuery.value) return users.value;
@@ -33,6 +34,34 @@ const filteredUsers = computed(() => {
         user.name.toLowerCase().includes(searchQuery.value.toLowerCase())
     );
 });
+
+// Avatar functions
+const getInitials = (name: string) => {
+    if (!name) return 'U';
+    return name
+        .split(' ')
+        .map((word) => word.charAt(0))
+        .join('')
+        .toUpperCase()
+        .slice(0, 2);
+};
+
+const getAvatarColor = (name: string) => {
+    if (!name) return '#6B7280';
+    
+    const colors = [
+        '#EF4444', '#F97316', '#F59E0B', '#EAB308',
+        '#84CC16', '#22C55E', '#10B981', '#14B8A6',
+        '#06B6D4', '#0EA5E9', '#3B82F6', '#6366F1',
+        '#8B5CF6', '#A855F7', '#D946EF', '#EC4899',
+    ];
+    
+    const hash = name
+        .split('')
+        .reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    
+    return colors[hash % colors.length];
+};
 
 const fetchUsers = async () => {
     loading.value = true;
@@ -55,6 +84,10 @@ const toggleUser = (userId: number) => {
     }
 };
 
+const handleImageError = (userId: number) => {
+    failedAvatars.value.add(userId);
+};
+
 const sharePost = async () => {
     if (selectedUsers.value.length === 0) return;
 
@@ -68,17 +101,15 @@ const sharePost = async () => {
             user_ids: selectedUsers.value,
         });
 
-        // Show success notification
         if (response.data.success) {
-            alert(response.data.message);
+            emit('shared');
+            emit('close');
+            selectedUsers.value = [];
+            searchQuery.value = '';
         } else {
-            alert('Failed to share post. Please try again.');
+            console.error('Share failed:', response.data);
         }
 
-        emit('shared');
-        emit('close');
-        selectedUsers.value = [];
-        searchQuery.value = '';
     } catch (e: any) {
         console.error('Failed to share post:', e);
         alert('Failed to share post. Please check your connection and try again.');
@@ -91,6 +122,7 @@ const closeModal = () => {
     emit('close');
     selectedUsers.value = [];
     searchQuery.value = '';
+    failedAvatars.value.clear();
 };
 
 // Watch for modal opening
@@ -102,7 +134,7 @@ watch(() => props.isOpen, (isOpen) => {
 </script>
 
 <template>
-    <div v-if="isOpen" class="fixed inset-0 bg-black bg-opacity-20 backdrop-blur-md flex items-center justify-center z-50">
+    <div v-if="isOpen" class="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50">
         <div class="bg-white rounded-xl p-6 w-full max-w-md mx-4 shadow-2xl border border-gray-200">
             <div class="flex justify-between items-center mb-4">
                 <h3 class="text-lg font-semibold text-gray-900">Share Post</h3>
@@ -150,7 +182,18 @@ watch(() => props.isOpen, (isOpen) => {
                             class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                             readonly
                         />
-                        <img :src="user.avatar || '/profile.png'" class="w-8 h-8 rounded-full object-cover border border-gray-200" />
+                        
+                        <!-- Avatar with color and fallback -->
+                        <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium text-white flex-shrink-0"
+                             :style="{ backgroundColor: getAvatarColor(user.name) }">
+                            <img v-if="user.avatar && !failedAvatars.has(user.id)" 
+                                 :src="user.avatar" 
+                                 :alt="user.name"
+                                 class="w-full h-full object-cover rounded-full" 
+                                 @error="handleImageError(user.id)" />
+                            <span v-else class="select-none">{{ getInitials(user.name) }}</span>
+                        </div>
+                        
                         <span class="text-sm font-medium text-gray-900">{{ user.name }}</span>
                     </div>
                 </div>

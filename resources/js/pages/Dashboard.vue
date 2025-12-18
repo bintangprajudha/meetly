@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import PostCard from '@/components/PostCard.vue';
 import PostModal from '@/components/PostModal.vue';
-import AppHeaderLayout from '@/layouts/app/AppHeaderLayout.vue';
 import AppSidebarLayout from '@/layouts/app/AppSidebarLayout.vue';
 import { Head, router } from '@inertiajs/vue3';
 import { ref } from 'vue';
@@ -42,6 +41,7 @@ const props = defineProps<{
         id: number;
         name: string;
         email: string;
+        avatar?: string;
     };
     posts: Post[];
 }>();
@@ -84,27 +84,127 @@ const handlePostCommented = (postId: number | string) => {
         }
     }
 };
+
+// Helper function to get user initials
+const getInitials = (name: string) => {
+    if (!name) return 'U';
+    return name
+        .split(' ')
+        .map((word) => word.charAt(0))
+        .join('')
+        .toUpperCase()
+        .slice(0, 2);
+};
+
+// Helper function to get avatar color
+const getAvatarColor = (name: string) => {
+    if (!name) return '#6B7280';
+
+    const colors = [
+        '#EF4444',
+        '#F97316',
+        '#F59E0B',
+        '#EAB308',
+        '#84CC16',
+        '#22C55E',
+        '#10B981',
+        '#14B8A6',
+        '#06B6D4',
+        '#0EA5E9',
+        '#3B82F6',
+        '#6366F1',
+        '#8B5CF6',
+        '#A855F7',
+        '#D946EF',
+        '#EC4899',
+    ];
+
+    const hash = name.split('').reduce((acc, char) => {
+        return acc + char.charCodeAt(0);
+    }, 0);
+
+    return colors[hash % colors.length];
+};
 </script>
 
 <template>
-    <Head title="Dashboard" />
+    <Head/>
 
     <AppSidebarLayout @open-post="openPostModal">
-        <AppHeaderLayout>
-            <main class="p-6">
-                <div class="mx-auto max-w-2xl">
-                    <div v-if="posts.length > 0" class="space-y-4">
+        <main class="min-h-screen bg-gray-50">
+            <div class="mx-auto max-w-2xl">
+                <!-- Create Post Box -->
+                <div class="bg-white border-b border-gray-200">
+                    <div class="p-4">
+                        <div class="flex gap-3">
+                            <!-- User Avatar -->
+                            <div class="flex-shrink-0">
+                                <div v-if="props.user.avatar" class="w-12 h-12 rounded-full overflow-hidden">
+                                    <img :src="props.user.avatar" :alt="props.user.name" class="w-full h-full object-cover">
+                                </div>
+                                <div v-else
+                                    class="w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold text-sm"
+                                    :style="{ backgroundColor: getAvatarColor(props.user.name) }">
+                                    {{ getInitials(props.user.name) }}
+                                </div>
+                            </div>
+
+                            <!-- Input Area -->
+                            <div class="flex-1">
+                                <button
+                                    @click="openPostModal"
+                                    class="w-full text-left text-gray-500 text-lg py-3 px-0 hover:text-gray-700 transition-colors focus:outline-none"
+                                >
+                                    What's happening?
+                                </button>
+
+                                <!-- Action Buttons -->
+                                <div class="flex items-center justify-between pt-3 border-t border-gray-100 mt-3">
+                                    <div class="flex items-center gap-1">
+                                        <!-- Media Button -->
+                                        <button
+                                            @click="openPostModal"
+                                            class="p-2 rounded-full hover:bg-blue-50 text-blue-500 transition-colors"
+                                            title="Media"
+                                        >
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                    <!-- Post Button -->
+                                    <button
+                                        @click="openPostModal"
+                                        class="bg-blue-500 text-white px-4 py-1.5 rounded-full font-bold text-sm hover:bg-blue-600 transition-colors"
+                                    >
+                                        Post
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Posts Feed -->
+                <div v-if="posts.length > 0" class="bg-white">
+                    <div
+                        v-for="post in posts"
+                        :key="post.id"
+                        class="border-b border-gray-200 last:border-b-0"
+                    >
                         <PostCard
-                            v-for="post in posts"
-                            :key="post.id"
                             :post="post"
                             :current-user="props.user"
                             @delete="handleDeletePost"
                             @commented="handlePostCommented"
                         />
                     </div>
+                </div>
 
-                    <div v-else class="py-12 text-center">
+                <!-- Empty State -->
+                <div v-else class="bg-white border-b border-gray-200 py-12">
+                    <div class="text-center px-4">
                         <div
                             class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100"
                         >
@@ -130,20 +230,20 @@ const handlePostCommented = (postId: number | string) => {
                         </p>
                         <button
                             @click="openPostModal"
-                            class="rounded-lg bg-[#D84040] px-6 py-3 font-medium text-white transition-colors hover:bg-[#C73636]"
+                            class="rounded-full bg-blue-500 px-6 py-2 font-bold text-white transition-colors hover:bg-blue-600"
                         >
                             Create your first post
                         </button>
                     </div>
                 </div>
-            </main>
+            </div>
+        </main>
 
-            <PostModal
-                :is-open="showPostModal"
-                :user="props.user"
-                @close="showPostModal = false"
-                @posted="handlePostCreated"
-            />
-        </AppHeaderLayout>
+        <PostModal
+            :is-open="showPostModal"
+            :user="props.user"
+            @close="showPostModal = false"
+            @posted="handlePostCreated"
+        />
     </AppSidebarLayout>
 </template>

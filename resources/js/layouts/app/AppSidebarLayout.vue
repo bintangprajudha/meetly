@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { usePage, Link } from '@inertiajs/vue3';
+import { usePage, Link, router } from '@inertiajs/vue3';
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import PostModal from '@/components/PostModal.vue';
+import axios from 'axios';
 
 interface User {
   id: number;
@@ -10,8 +11,26 @@ interface User {
   avatar?: string;
 }
 
+interface Chat {
+  user: User;
+  last_message: string | null;
+  last_message_at: string | null;
+  is_read: boolean;
+  unread_count?: number;
+}
+
 const page = usePage();
 const user = computed(() => (page.props as any).auth?.user as User);
+const unreadNotifications = computed(() => (page.props as any).unreadNotifications || 0);
+
+// State untuk unread messages
+const chats = ref<Chat[]>([]);
+const loadingChats = ref(false);
+
+// Computed: Jumlah user unik yang mengirim pesan belum dibaca
+const unreadMessages = computed(() => {
+  return chats.value.filter(chat => chat.unread_count && chat.unread_count > 0).length;
+});
 
 const emit = defineEmits(['posted']);
 
@@ -42,13 +61,76 @@ const handleClickOutside = (event: MouseEvent) => {
   }
 };
 
+// Fetch unread messages count
+const fetchUnreadMessages = async () => {
+  if (loadingChats.value) return;
+  
+  loadingChats.value = true;
+  try {
+    const res = await axios.get('/api/messages');
+    chats.value = res.data.filter((chat: Chat) => chat.last_message !== null);
+  } catch (e) {
+    console.error("Failed to fetch unread messages:", e);
+  } finally {
+    loadingChats.value = false;
+  }
+};
+
+// Setup real-time listener
+const setupRealtimeListener = () => {
+  if (window.Echo && user.value?.id) {
+    window.Echo.private(`chat.${user.value.id}`)
+      .listen('NewMessage', () => {
+        fetchUnreadMessages();
+      })
+      .listen('MessageRead', () => {
+        fetchUnreadMessages();
+      });
+  }
+};
+
 onMounted(() => {
   document.addEventListener('click', handleClickOutside);
+  
+  // Fetch unread messages on mount
+  fetchUnreadMessages();
+  
+  // Setup real-time updates
+  setupRealtimeListener();
 });
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside);
 });
+
+// Logout Modal
+const showLogoutModal = ref(false);
+
+const handleLogout = (event: Event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    showProfileDropdown.value = false; // Close dropdown
+    showLogoutModal.value = true;
+};
+
+const closeLogoutModal = () => {
+    showLogoutModal.value = false;
+};
+
+const confirmLogout = () => {
+    // Use Inertia router for logout
+    router.post('/logout', {}, {
+        preserveState: false,
+        preserveScroll: false,
+        onStart: () => {
+            showLogoutModal.value = false;
+        },
+        onError: (errors) => {
+            console.error('Logout failed:', errors);
+            alert('Failed to logout. Please try again.');
+        }
+    });
+};
 </script>
 
 <template>
@@ -96,33 +178,49 @@ onUnmounted(() => {
               </span>
             </Link>
 
-            <!-- Notifications -->
+            <!-- Notifications with Badge -->
             <div class="relative w-full">
               <Link href="/notifications"
                 class="w-full flex items-center text-[#D84040] transition group px-2 py-2 hover:bg-[#FDECEC] hover:rounded-xl"
                 :class="{ 'bg-[#FDECEC] rounded-xl font-semibold': $page.url.startsWith('/notifications') }"
                 title="Notifications">
-                <svg class="w-6 h-6" fill="none" stroke="#D84040" viewBox="0 0 24 24" stroke-width="2">
-                  <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" stroke-linecap="round" stroke-linejoin="round" />
-                  <path d="M13.73 21a2 2 0 01-3.46 0" stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
-                <span class="ml-3 whitespace-nowrap hidden group-hover:block text-[#D84040] font-medium">
+                <div class="relative">
+                  <svg class="w-6 h-6" fill="none" stroke="#D84040" viewBox="0 0 24 24" stroke-width="2">
+                    <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" stroke-linecap="round" stroke-linejoin="round" />
+                    <path d="M13.73 21a2 2 0 01-3.46 0" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                  <!-- Badge for collapsed sidebar -->
+                  <span v-if="unreadNotifications > 0" 
+                    class="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">
+                    {{ unreadNotifications > 99 ? '99+' : unreadNotifications }}
+                  </span>
+                </div>
+                <span class="ml-3 whitespace-nowrap hidden group-hover:flex items-center text-[#D84040] font-medium flex-1">
                   Notifications
                 </span>
               </Link>
             </div>
 
-            <!-- Messages -->
-            <Link :href="`/chat/${user.id}`"
-              class="w-full flex items-center text-[#D84040] transition group px-2 py-2 hover:bg-[#FDECEC] hover:rounded-xl"
-              :class="{ 'bg-[#FDECEC] rounded-xl font-semibold': $page.url.startsWith('/chat') }" title="Messages">
-              <svg class="w-6 h-6" fill="none" stroke="#D84040" viewBox="0 0 24 24" stroke-width="2">
-                <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" stroke-linecap="round" stroke-linejoin="round" />
-              </svg>
-              <span class="ml-3 whitespace-nowrap hidden group-hover:block text-[#D84040] font-medium">
-                Messages
-              </span>
-            </Link>
+            <!-- Messages with Badge (User Count) -->
+            <div class="relative w-full">
+              <Link href="/chat"
+                class="w-full flex items-center text-[#D84040] transition group px-2 py-2 hover:bg-[#FDECEC] hover:rounded-xl"
+                :class="{ 'bg-[#FDECEC] rounded-xl font-semibold': $page.url.startsWith('/chat') }" title="Messages">
+                <div class="relative">
+                  <svg class="w-6 h-6" fill="none" stroke="#D84040" viewBox="0 0 24 24" stroke-width="2">
+                      <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 13.8214 2.48697 15.5291 3.33782 17L2.5 21.5L7 20.6622C8.47087 21.513 10.1786 22 12 22Z" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                  <!-- Badge showing number of users with unread messages -->
+                  <span v-if="unreadMessages > 0" 
+                    class="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">
+                    {{ unreadMessages > 99 ? '99+' : unreadMessages }}
+                  </span>
+                </div>
+                <span class="ml-3 whitespace-nowrap hidden group-hover:flex items-center text-[#D84040] font-medium flex-1">
+                  Messages
+                </span>
+              </Link>
+            </div>
 
             <!-- Bookmarks -->
             <Link href="/bookmarks"
@@ -219,8 +317,9 @@ onUnmounted(() => {
               <!-- Divider -->
               <div class="border-t border-gray-100 my-1"></div>
 
-              <!-- Logout -->
-              <Link href="/logout" method="post" as="button"
+              <!-- Logout Button (Updated) -->
+              <button 
+                @click="handleLogout"
                 class="w-full flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition text-left">
                 <svg class="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -228,7 +327,7 @@ onUnmounted(() => {
                   </path>
                 </svg>
                 Log out
-              </Link>
+              </button>
             </div>
           </transition>
         </div>
@@ -243,5 +342,84 @@ onUnmounted(() => {
     </main>
 
     <PostModal :is-open="showPostModal" :user="user as any" @close="closePostModal" @posted="handlePostCreated" />
+
+    <!-- Logout Confirmation Modal -->
+    <Teleport to="body">
+        <Transition
+            enter-active-class="transition-opacity duration-200"
+            enter-from-class="opacity-0"
+            enter-to-class="opacity-100"
+            leave-active-class="transition-opacity duration-200"
+            leave-from-class="opacity-100"
+            leave-to-class="opacity-0"
+        >
+            <div
+                v-if="showLogoutModal"
+                class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+                @click.self="closeLogoutModal"
+            >
+                <Transition
+                    enter-active-class="transition-all duration-200"
+                    enter-from-class="opacity-0 scale-95"
+                    enter-to-class="opacity-100 scale-100"
+                    leave-active-class="transition-all duration-200"
+                    leave-from-class="opacity-100 scale-100"
+                    leave-to-class="opacity-0 scale-95"
+                >
+                    <div
+                        v-if="showLogoutModal"
+                        class="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden"
+                    >
+                        <!-- Header -->
+                        <div class="bg-gradient-to-r from-red-500 to-red-600 p-6">
+                            <div class="flex items-center justify-center mb-4">
+                                <div class="bg-white/20 backdrop-blur-sm rounded-full p-3">
+                                    <svg 
+                                        class="w-8 h-8 text-white" 
+                                        fill="none" 
+                                        stroke="currentColor" 
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path 
+                                            stroke-linecap="round" 
+                                            stroke-linejoin="round" 
+                                            stroke-width="2"
+                                            d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                                        />
+                                    </svg>
+                                </div>
+                            </div>
+                            <h3 class="text-2xl font-bold text-white text-center">
+                                Confirm Logout
+                            </h3>
+                        </div>
+
+                        <!-- Body -->
+                        <div class="p-6">
+                            <p class="text-gray-600 text-center mb-6">
+                                Are you sure you want to log out? You'll need to sign in again to access your account.
+                            </p>
+
+                            <!-- Actions -->
+                            <div class="flex gap-3">
+                                <button
+                                    @click="closeLogoutModal"
+                                    class="flex-1 px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-xl transition-colors duration-200"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    @click="confirmLogout"
+                                    class="flex-1 px-4 py-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-medium rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl"
+                                >
+                                    Log Out
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </Transition>
+            </div>
+        </Transition>
+    </Teleport>
   </div>
 </template>

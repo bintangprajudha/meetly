@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import PostCard from '@/components/PostCard.vue';
-import AppHeaderLayout from '@/layouts/app/AppHeaderLayout.vue';
+// import AppHeaderLayout from '@/layouts/app/AppHeaderLayout.vue';
 import AppSidebarLayout from '@/layouts/app/AppSidebarLayout.vue';
 import { Head, router } from '@inertiajs/vue3';
 import { ref } from 'vue';
@@ -53,7 +53,7 @@ const handleDeletePost = async (postId: number) => {
     <Head title="Liked Posts" />
 
     <AppSidebarLayout>
-        <AppHeaderLayout>
+        <!-- <AppHeaderLayout> -->
             <main class="p-6">
                 <div class="mx-auto max-w-2xl">
                     <h1 class="mb-6 text-2xl font-bold text-gray-900">
@@ -102,6 +102,6 @@ const handleDeletePost = async (postId: number) => {
                     </div>
                 </div>
             </main>
-        </AppHeaderLayout>
+        <!-- </AppHeaderLayout> -->
     </AppSidebarLayout>
 </template>
