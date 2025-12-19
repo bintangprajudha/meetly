@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Post;
 use App\Models\Repost;
 use App\Models\Notification;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Inertia\Inertia;
 use Illuminate\Http\Request;
 use App\Http\Requests\PostController\StoreRequest;
@@ -24,6 +25,8 @@ use Illuminate\Validation\ValidationException;
  */
 class PostController extends Controller
 {
+    use AuthorizesRequests;
+
     /**
      * Display full feed (posts + reposts combined by date).
      */
@@ -70,7 +73,7 @@ class PostController extends Controller
                 $post->likes()->detach($userId);
                 $liked = false;
 
-                 Notification::where('user_id', $post->user_id)
+                Notification::where('user_id', $post->user_id)
                     ->where('actor_id', $userId)
                     ->where('type', 'like')
                     ->where('notifiable_id', $post->id)
@@ -315,17 +318,15 @@ class PostController extends Controller
      */
     public function destroy(Post $post)
     {
-        if ($post->user_id !== Auth::id()) {
-            throw ValidationException::withMessages([
-                'authorization' => 'You can only delete your own posts.',
-            ]);
-        }
+        // Gunakan policy untuk cek otorisasi (admin atau owner)
+        $this->authorize('delete', $post);
 
         $post->delete();
 
         Log::info('Post deleted', [
             'post_id' => $post->id,
             'user_id' => Auth::id(),
+            'is_admin' => Auth::user()->is_admin ?? false,
         ]);
 
         return redirect()->back()->with('success', 'Post deleted successfully!');
