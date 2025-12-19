@@ -44,24 +44,29 @@ class HandleInertiaRequests extends Middleware
             'name' => config('app.name'),
             'quote' => ['message' => trim($message), 'author' => trim($author)],
             'auth' => [
-                'user' => $request->user(),
+                'user' => $request->user() ? [
+                    'id' => $request->user()->id,
+                    'name' => $request->user()->name,
+                    'email' => $request->user()->email,
+                    'is_admin' => $request->user()->is_admin ?? false,
+                ] : null,
             ],
 
-            'unreadNotifications' => $request->user() 
-                ? $request->user()->unreadNotifications()->count() 
+            'unreadNotifications' => $request->user()
+                ? $request->user()->unreadNotifications()->count()
                 : 0,
             // Add unread messages count
-            'unreadMessages' => $request->user() 
+            'unreadMessages' => $request->user()
                 ? Message::where('receiver_id', $request->user()->id)
-                    ->where('status', '!=', 'read')
-                    ->count()
+                ->where('status', '!=', 'read')
+                ->count()
                 : 0,
 
             // 'csrf_token' => csrf_token(),
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             'flash' => [
-                'success' => fn () => $request->session()->get('success'),
-                'error' => fn () => $request->session()->get('error'),
+                'success' => fn() => $request->session()->get('success'),
+                'error' => fn() => $request->session()->get('error'),
             ],
         ];
     }

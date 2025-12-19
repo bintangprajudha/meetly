@@ -26,6 +26,8 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+ADMIN_FEATURES.md
+ADMIN_FEATURES.md
 
 # Windows Zone.Identifier files
 *:Zone.Identifier

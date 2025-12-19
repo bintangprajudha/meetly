@@ -11,6 +11,8 @@ use App\Http\Controllers\RepostController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\ReportController;
+use App\Http\Controllers\AdminUserController;
 
 Route::get('/', function () {
     return Inertia::render('Home');
@@ -37,7 +39,7 @@ Route::middleware(['guest'])->group(function () {
 Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard', function () {
         $userId = Auth::id();
-        
+
         $posts = \App\Models\Post::with('user')
             ->withCount(['likes', 'bookmarks', 'comments'])
             ->orderBy('created_at', 'desc')
@@ -106,6 +108,16 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/{user:name}/followers', [UserController::class, 'followers'])->name('user.followers');
     Route::get('/{user:name}/following', [UserController::class, 'following'])->name('user.following');
     Route::get('/profile/edit', [UserController::class, 'edit'])->name('profile.edit');
+
+    // Report routes (user bisa melaporkan post)
+    Route::post('/reports', [ReportController::class, 'store'])->name('reports.store');
+});
+
+// Admin routes (hanya admin yang bisa akses)
+Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/dashboard', [AdminUserController::class, 'dashboard'])->name('dashboard');
+    Route::delete('/users/{user}', [AdminUserController::class, 'destroy'])->name('users.destroy');
+    Route::patch('/reports/{report}/status', [ReportController::class, 'updateStatus'])->name('reports.update-status');
 });
 
 Route::get('/users/{user}/followers', [FollowController::class, 'followers'])->name('users.followers');
