@@ -1261,7 +1261,7 @@ const handlePostShared = () => {
                             </label>
                             <select
                                 v-model="reportReason"
-                                class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                class="w-full text-black rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
                             >
                                 <option value="">Select a reason</option>
                                 <option value="spam">Spam</option>
@@ -1291,7 +1291,7 @@ const handlePostShared = () => {
                             <textarea
                                 v-model="reportDescription"
                                 rows="3"
-                                class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                class="w-full rounded-lg border text-black border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
                                 placeholder="Provide more information about why you're reporting this post..."
                             ></textarea>
                         </div>

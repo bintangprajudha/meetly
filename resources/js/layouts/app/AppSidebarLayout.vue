@@ -377,7 +377,7 @@ const confirmLogout = () => {
                                 'rounded-xl bg-[#FDECEC] font-semibold':
                                     $page.url.startsWith('/admin'),
                             }"
-                            title="Admin Dashboard"
+                            title="Admin"
                         >
                             <svg
                                 class="h-6 w-6"
@@ -395,7 +395,7 @@ const confirmLogout = () => {
                             <span
                                 class="ml-3 hidden font-medium whitespace-nowrap text-[#D84040] group-hover:block"
                             >
-                                Admin Dashboard
+                                Admin
                             </span>
                         </Link>
 
