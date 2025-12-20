@@ -1006,8 +1006,10 @@ const openOriginalMediaPreview = (index: number) => {
                                 Reason for reporting
                                 <span class="text-red-500">*</span>
                             </label>
-                            <select v-model="reportReason"
-                                class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                            <select
+                                v-model="reportReason"
+                                class="w-full text-black rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                            >
                                 <option value="">Select a reason</option>
                                 <option value="spam">Spam</option>
                                 <option value="harassment">
@@ -1031,9 +1033,12 @@ const openOriginalMediaPreview = (index: number) => {
                             <label class="mb-2 block text-sm font-medium text-gray-700">
                                 Additional details (optional)
                             </label>
-                            <textarea v-model="reportDescription" rows="3"
-                                class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                                placeholder="Provide more information about why you're reporting this post..."></textarea>
+                            <textarea
+                                v-model="reportDescription"
+                                rows="3"
+                                class="w-full rounded-lg border text-black border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                placeholder="Provide more information about why you're reporting this post..."
+                            ></textarea>
                         </div>
                     </div>
 
