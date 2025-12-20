@@ -108,6 +108,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/{user:name}/followers', [UserController::class, 'followers'])->name('user.followers');
     Route::get('/{user:name}/following', [UserController::class, 'following'])->name('user.following');
     Route::get('/profile/edit', [UserController::class, 'edit'])->name('profile.edit');
+    Route::post('/profile/update', [UserController::class, 'update'])
+        ->name('profile.update')
+        ->middleware('auth');
 
     // Report routes (user bisa melaporkan post)
     Route::post('/reports', [ReportController::class, 'store'])->name('reports.store');
@@ -124,6 +127,6 @@ Route::get('/users/{user}/followers', [FollowController::class, 'followers'])->n
 Route::get('/users/{user}/following', [FollowController::class, 'following'])->name('users.following');
 
 // User Profile routes (accessible by both authenticated and guest users)
-Route::get('/{username}', [UserController::class, 'show'])
+Route::get('/@{username}', [UserController::class, 'show'])
     ->name('user.profile')
     ->where('username', '[A-Za-z0-9_]+'); // Only allow alphanumeric and underscore
