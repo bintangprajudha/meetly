@@ -37,7 +37,7 @@ const props = defineProps<{
 // local reactive copy so we can update likes optimistically
 const posts = ref(props.posts.map((p) => ({ ...p })));
 
-const handleDeletePost = async (postId: number) => {
+const handleDeletePost = async (postId: number | string) => {
     try {
         await router.delete(`/posts/${postId}`, {
             preserveState: false,
