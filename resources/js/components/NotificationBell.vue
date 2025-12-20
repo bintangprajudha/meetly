@@ -8,7 +8,7 @@ interface Actor {
     id: number;
     name: string;
     email: string;
-    avatar: string | null;
+    avatar: string;
 }
 
 interface Notification {

@@ -4,11 +4,13 @@ import { computed, ref } from 'vue';
 
 const props = defineProps<{
     isOpen: boolean;
-    postId: number | string;
+    postId: number;
     user: {
         id: number;
         name: string;
         email: string;
+        username?: string;
+        avatar?: string | null;
     };
 }>();
 
@@ -66,6 +68,11 @@ const closeModal = () => {
     }
 };
 
+const getUserUsername = (user: any) => {
+    if (!user) return '';
+    return user.username || user.name.toLowerCase().replace(/\s+/g, '');
+};
+
 const handleKeydown = (event: KeyboardEvent) => {
     if (event.key === 'Escape') {
         closeModal();
@@ -115,17 +122,23 @@ const handleKeydown = (event: KeyboardEvent) => {
                 <form @submit.prevent="submitComment">
                     <!-- User Info -->
                     <div class="mb-4 flex items-start space-x-3">
-                        <div
-                            class="flex h-10 w-10 items-center justify-center rounded-full bg-blue-500 text-sm font-medium text-white"
-                        >
-                            {{ user.name.charAt(0).toUpperCase() }}
+                        <div class="h-8 w-8 overflow-hidden rounded-full bg-blue-500 flex-shrink-0">
+                            <img v-if="user.avatar" 
+                                 :src="`/storage/${user.avatar}`" 
+                                 :alt="user.name"
+                                 class="h-full w-full object-cover" />
+                            
+                            <div v-else
+                                 class="flex h-full w-full items-center justify-center text-xs font-medium text-white">
+                                {{ user.name.charAt(0).toUpperCase() }}
+                            </div>
                         </div>
                         <div class="flex-1">
                             <p class="font-medium text-gray-900">
                                 {{ user.name }}
                             </p>
                             <p class="text-sm text-gray-500">
-                                @{{ user.email.split('@')[0] }}
+                                @{{ getUserUsername(user) }}
                             </p>
                         </div>
                     </div>
