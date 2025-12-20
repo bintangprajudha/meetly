@@ -117,13 +117,13 @@ const submit = () => {
 
     <!-- SOCIAL -->
     <div class="mt-12 text-center">
-        <p class="text-base text-gray-500 mb-4">Or continue with</p>
+        <!-- <p class="text-base text-gray-500 mb-4">Or continue with</p>
 
         <div class="flex justify-center space-x-5">
             <button class="w-12 h-12 rounded-full bg-white border shadow flex items-center justify-center text-blue-600 text-xl">F</button>
             <button class="w-12 h-12 rounded-full bg-white border shadow flex items-center justify-center text-red-500 text-xl">G</button>
             <button class="w-12 h-12 rounded-full bg-white border shadow flex items-center justify-center text-blue-800 text-xl">in</button>
-        </div>
+        </div> -->
 
         <p class="mt-8 text-lg text-gray-600">
             Don't have an account?

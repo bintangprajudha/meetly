@@ -92,7 +92,7 @@ const getAvatarColor = (name: string): string => {
                     <div class="px-4 py-3">
                         <div class="flex items-center gap-4">
                             <!-- Back Button -->
-                            <Link :href="`/${user.name}`" class="p-2 -ml-2 rounded-full hover:bg-gray-100 transition-colors">
+                            <Link :href="`/@${user.name}`" class="p-2 -ml-2 rounded-full hover:bg-gray-100 transition-colors">
                                  <svg
                                 class="h-5 w-5 text-black"
                                 fill="currentColor"

@@ -5,10 +5,13 @@ namespace App\Http\Controllers;
 use App\Models\Post;
 use App\Models\User;
 use Inertia\Inertia;
-use App\Models\Repost;
 use Inertia\Response;
+use App\Models\Repost;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 
 /**
  * Controller for handling user profile pages and all related
@@ -41,11 +44,12 @@ class UserController extends Controller
                 ->where('id', '!=', $currentUser->id)
                 ->orderBy('name', 'asc')
                 ->get()
-                ->map(function ($user) {
+            ->map(function ($user) {
                     return [
                         'id' => $user->id,
                         'name' => $user->name,
-                        'avatar' => $user->email // Atau bisa: $user->avatar ?? '/default-avatar.png'
+                        'username' => $user->username,
+                        'avatar' => $user->avatar ? $user->avatar : null
                     ];
                 });
 
@@ -109,6 +113,98 @@ class UserController extends Controller
             'user' => $user
         ]);
     }
+
+   public function update(Request $request)
+{
+    /** @var \App\Models\User $user */
+    $user = Auth::user();
+
+    // Log untuk debugging
+    Log::info('Profile update attempt', [
+        'user_id' => $user->id,
+        'has_avatar' => $request->hasFile('avatar'),
+        'has_banner' => $request->hasFile('banner'),
+        'request_data' => $request->except(['avatar', 'banner']),
+    ]);
+
+    // Validasi input
+    $validated = $request->validate([
+        'name' => ['required', 'string', 'max:50'],
+        'username' => ['nullable', 'string', 'max:30', Rule::unique('users')->ignore($user->id)],
+        'bio' => ['nullable', 'string', 'max:160'],
+        'location' => ['nullable', 'string', 'max:50'],
+        'website' => ['nullable', 'url', 'max:100'],
+        'avatar' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif', 'max:10240'],
+        'banner' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif', 'max:10240'],
+        'remove_banner' => ['nullable', 'boolean'],
+    ]);
+
+    // ✅ Update text fields first
+    $user->name = $validated['name'];
+    $user->username = $validated['username'] ?? null;
+    $user->bio = $validated['bio'] ?? null;
+    $user->location = $validated['location'] ?? null;
+    $user->website = $validated['website'] ?? null;
+
+    // Handle avatar upload
+    if ($request->hasFile('avatar')) {
+        Log::info('Processing avatar upload');
+        
+        // Delete old avatar
+        if ($user->avatar && Storage::disk('public')->exists($user->avatar)) {
+            Storage::disk('public')->delete($user->avatar);
+            Log::info('Old avatar deleted', ['path' => $user->avatar]);
+        }
+
+        // Store new avatar
+        $avatarPath = $request->file('avatar')->store('avatars', 'public');
+        $user->avatar = $avatarPath;
+        Log::info('New avatar stored', ['path' => $avatarPath]);
+    }
+
+    // Handle avatar removal
+      if ($request->input('remove_avatar')) {
+        if ($user->avatar && Storage::disk('public')->exists($user->avatar)) {
+            Storage::disk('public')->delete($user->avatar);
+        }
+        $user->avatar = null;
+    }
+    
+    // Handle banner upload
+    if ($request->hasFile('banner')) {
+        Log::info('Processing banner upload');
+        
+        // Delete old banner
+        if ($user->banner && Storage::disk('public')->exists($user->banner)) {
+            Storage::disk('public')->delete($user->banner);
+            Log::info('Old banner deleted', ['path' => $user->banner]);
+        }
+
+        // Store new banner
+        $bannerPath = $request->file('banner')->store('banners', 'public');
+        $user->banner = $bannerPath;
+        Log::info('New banner stored', ['path' => $bannerPath]);
+    }
+
+    // Handle banner removal
+      if ($request->input('remove_banner')) {
+        if ($user->banner && Storage::disk('public')->exists($user->banner)) {
+            Storage::disk('public')->delete($user->banner);
+        }
+        $user->banner = null;
+    }
+
+    // ✅ Save once at the end
+    $user->save();
+
+    Log::info('Profile updated successfully', [
+        'user_id' => $user->id,
+        'avatar' => $user->avatar,
+        'banner' => $user->banner,
+    ]);
+
+    return redirect()->back()->with('success', 'Profile updated successfully!');
+}
 
     /**
      * Display followers of a user
@@ -207,9 +303,19 @@ class UserController extends Controller
      */
     private function getProfileUser($username)
     {
-        return User::where('name', $username)
+        $username = ltrim($username, '@');
+        
+        // Cari berdasarkan username dulu, baru name
+        $user = User::where('username', $username)
+            ->orWhere('name', $username)
             ->withCount(['followers', 'following'])
-            ->firstOrFail();
+            ->first();
+            
+        if (!$user) {
+            abort(404, 'User not found');
+        }
+        
+        return $user;
     }
 
     /**

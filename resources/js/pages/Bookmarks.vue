@@ -37,7 +37,7 @@ const props = defineProps<{
 // local reactive copy so we can update likes optimistically
 const posts = ref(props.posts.map((p) => ({ ...p })));
 
-const handleDeletePost = async (postId: number) => {
+const handleDeletePost = async (postId: string | number) => {
     try {
         await router.delete(`/posts/${postId}`, {
             preserveState: false,
@@ -54,12 +54,16 @@ const handleDeletePost = async (postId: number) => {
 
     <AppSidebarLayout>
         <!-- <AppHeaderLayout> -->
-            <main class="p-6">
+            <main class="min-h-screen bg-white p-4 sm:p-6">
                 <div class="mx-auto max-w-2xl">
-                    <h1 class="mb-6 text-2xl font-bold text-gray-900">
-                        Bookmarked Posts
-                    </h1>
+                    <!-- Header -->
+                    <div class="mb-4 border-b border-gray-200 pb-4 sm:mb-6 sm:pb-6">
+                        <h1 class="text-xl font-bold text-gray-900 sm:text-2xl">
+                            Bookmarked Posts
+                        </h1>
+                    </div>
 
+                    <!-- Posts List -->
                     <div v-if="posts.length > 0" class="space-y-4">
                         <PostCard
                             v-for="post in posts"
@@ -70,7 +74,8 @@ const handleDeletePost = async (postId: number) => {
                         />
                     </div>
 
-                    <div v-else class="py-12 text-center">
+                    <!-- Empty State -->
+                    <div v-else class="py-12 text-center sm:py-16">
                         <div
                             class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-yellow-100"
                         >
@@ -91,14 +96,16 @@ const handleDeletePost = async (postId: number) => {
                         <h3 class="mb-2 text-lg font-medium text-gray-900">
                             No bookmarked posts yet
                         </h3>
-                        <p class="mb-4 text-gray-500">
+                        <p class="mb-4 text-sm text-gray-500 sm:text-base">
                             Posts you bookmark will appear here.
                         </p>
-                        <a
+                        
+                        <a 
                             href="/dashboard"
-                            class="rounded-lg bg-[#D84040] px-6 py-3 font-medium text-white transition-colors hover:bg-[#C73636]"
-                            >Browse Posts</a
+                            class="inline-block rounded-lg bg-[#D84040] px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#C73636] sm:px-8 sm:py-3 sm:text-base"
                         >
+                            Browse Posts
+                        </a>
                     </div>
                 </div>
             </main>

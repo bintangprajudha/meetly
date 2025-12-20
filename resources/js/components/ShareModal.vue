@@ -23,51 +23,43 @@ const emit = defineEmits<{
 
 const searchQuery = ref('');
 const selectedUsers = ref<number[]>([]);
-const users = ref<{ id: number; name: string; avatar?: string }[]>([]);
+const users = ref<{ id: number; name: string; username?: string | null; avatar?: string | null }[]>([]);
 const loading = ref(false);
 const sharing = ref(false);
-const failedAvatars = ref<Set<number>>(new Set());
 
 const filteredUsers = computed(() => {
     if (!searchQuery.value) return users.value;
     return users.value.filter(user =>
-        user.name.toLowerCase().includes(searchQuery.value.toLowerCase())
+        user.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+        (user.username && user.username.toLowerCase().includes(searchQuery.value.toLowerCase()))
     );
 });
 
-// Avatar functions
-const getInitials = (name: string) => {
-    if (!name) return 'U';
-    return name
-        .split(' ')
-        .map((word) => word.charAt(0))
-        .join('')
-        .toUpperCase()
-        .slice(0, 2);
+const getUserUsername = (user: any) => {
+    if (!user) return '';
+    return user.username || user.name.toLowerCase().replace(/\s+/g, '');
 };
 
-const getAvatarColor = (name: string) => {
-    if (!name) return '#6B7280';
-    
-    const colors = [
-        '#EF4444', '#F97316', '#F59E0B', '#EAB308',
-        '#84CC16', '#22C55E', '#10B981', '#14B8A6',
-        '#06B6D4', '#0EA5E9', '#3B82F6', '#6366F1',
-        '#8B5CF6', '#A855F7', '#D946EF', '#EC4899',
-    ];
-    
-    const hash = name
-        .split('')
-        .reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    
-    return colors[hash % colors.length];
+const getAvatarUrl = (avatar: string | null) => {
+    if (!avatar) return null;
+    return `/storage/${avatar}`;
+};
+
+const handleAvatarError = (userId: number) => {
+    const user = users.value.find(u => u.id === userId);
+    if (user) {
+        user.avatar = null;
+    }
 };
 
 const fetchUsers = async () => {
     loading.value = true;
     try {
-        const res = await axios.get('/api/users');
+        const res = await axios.get(`/api/users?t=${Date.now()}`);
         users.value = res.data.filter((user: any) => user.id !== page.props.auth?.user?.id);
+        
+        console.log('Fetched users:', users.value);
+        
     } catch (e) {
         console.error('Failed to fetch users:', e);
     } finally {
@@ -82,10 +74,6 @@ const toggleUser = (userId: number) => {
     } else {
         selectedUsers.value.push(userId);
     }
-};
-
-const handleImageError = (userId: number) => {
-    failedAvatars.value.add(userId);
 };
 
 const sharePost = async () => {
@@ -122,10 +110,8 @@ const closeModal = () => {
     emit('close');
     selectedUsers.value = [];
     searchQuery.value = '';
-    failedAvatars.value.clear();
 };
 
-// Watch for modal opening
 watch(() => props.isOpen, (isOpen) => {
     if (isOpen) {
         fetchUsers();
@@ -134,17 +120,22 @@ watch(() => props.isOpen, (isOpen) => {
 </script>
 
 <template>
-    <div v-if="isOpen" class="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50">
+    <div v-if="isOpen" class="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50" @click.self="closeModal">
         <div class="bg-white rounded-xl p-6 w-full max-w-md mx-4 shadow-2xl border border-gray-200">
+            <!-- Header -->
             <div class="flex justify-between items-center mb-4">
                 <h3 class="text-lg font-semibold text-gray-900">Share Post</h3>
-                <button @click="closeModal" class="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-full hover:bg-gray-100">
+                <button 
+                    @click="closeModal" 
+                    class="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-full hover:bg-gray-100"
+                >
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                     </svg>
                 </button>
             </div>
 
+            <!-- Post Preview -->
             <div class="mb-4">
                 <p class="text-sm text-gray-600 mb-2">Share this post with:</p>
                 <div class="bg-gray-50 p-3 rounded-lg mb-4 border border-gray-200">
@@ -153,6 +144,7 @@ watch(() => props.isOpen, (isOpen) => {
                 </div>
             </div>
 
+            <!-- Search Input -->
             <div class="mb-4">
                 <input
                     v-model="searchQuery"
@@ -162,13 +154,19 @@ watch(() => props.isOpen, (isOpen) => {
                 />
             </div>
 
+            <!-- Users List -->
             <div class="max-h-48 overflow-y-auto mb-4 border border-gray-200 rounded-lg bg-white">
+                <!-- Loading State -->
                 <div v-if="loading" class="text-center py-4">
                     <div class="text-sm text-gray-500">Loading users...</div>
                 </div>
+
+                <!-- Empty State -->
                 <div v-else-if="filteredUsers.length === 0" class="text-center py-4">
                     <div class="text-sm text-gray-500">No users found</div>
                 </div>
+
+                <!-- Users -->
                 <div v-else>
                     <div
                         v-for="user in filteredUsers"
@@ -176,6 +174,7 @@ watch(() => props.isOpen, (isOpen) => {
                         @click="toggleUser(user.id)"
                         class="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
                     >
+                        <!-- Checkbox -->
                         <input
                             type="checkbox"
                             :checked="selectedUsers.includes(user.id)"
@@ -183,22 +182,34 @@ watch(() => props.isOpen, (isOpen) => {
                             readonly
                         />
                         
-                        <!-- Avatar with color and fallback -->
-                        <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium text-white flex-shrink-0"
-                             :style="{ backgroundColor: getAvatarColor(user.name) }">
-                            <img v-if="user.avatar && !failedAvatars.has(user.id)" 
-                                 :src="user.avatar" 
-                                 :alt="user.name"
-                                 class="w-full h-full object-cover rounded-full" 
-                                 @error="handleImageError(user.id)" />
-                            <span v-else class="select-none">{{ getInitials(user.name) }}</span>
+                        <!-- Avatar -->
+                        <div class="h-8 w-8 overflow-hidden rounded-full bg-blue-500 flex-shrink-0">
+                            <img 
+                                v-if="user.avatar" 
+                                :src="getAvatarUrl(user.avatar)!" 
+                                :alt="user.name"
+                                @error="handleAvatarError(user.id)"
+                                class="h-full w-full object-cover" 
+                            />
+                            
+                            <div 
+                                v-else
+                                class="flex h-full w-full items-center justify-center text-xs font-medium text-white"
+                            >
+                                {{ user.name.charAt(0).toUpperCase() }}
+                            </div>
                         </div>
                         
-                        <span class="text-sm font-medium text-gray-900">{{ user.name }}</span>
+                        <!-- Name and Username -->
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-medium text-gray-900 truncate">{{ user.name }}</p>
+                            <p class="text-xs text-gray-500 truncate">@{{ getUserUsername(user) }}</p>
+                        </div>
                     </div>
                 </div>
             </div>
 
+            <!-- Actions -->
             <div class="flex justify-end space-x-2">
                 <button
                     @click="closeModal"

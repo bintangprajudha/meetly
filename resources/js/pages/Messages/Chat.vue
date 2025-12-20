@@ -9,12 +9,15 @@ interface User {
   name: string;
   email?: string;
   avatar?: string | null;
+  profile?: {
+    avatar?: string | null;
+  };
 }
 
 interface SharedPost {
   id: number;
   user_name: string;
-  user_avatar?: string;
+  user_avatar?: string | null;
   content: string;
   images?: string[];
   created_at: string;
@@ -65,6 +68,23 @@ const searchQuery = ref('');
 const userSearchQuery = ref('');
 const showDeleteModal = ref(false);
 const messageToDelete = ref<number | null>(null);
+
+// Helper functions untuk avatar - konsisten dengan profile
+const getUserAvatar = (user: User | null) => {
+  if (!user) return null;
+
+  // Cek avatar dari profile dulu, lalu dari user langsung
+  const avatar = user.profile?.avatar || user.avatar;
+  if (!avatar) return null;
+
+  // Jika sudah full URL, return langsung
+  if (avatar.startsWith('http')) {
+    return avatar;
+  }
+
+  // Jika relatif path, tambahkan /storage/
+  return `/storage/${avatar}`;
+};
 
 // Computed - dengan sorting berdasarkan waktu terbaru
 const filteredChats = computed(() => {
@@ -400,157 +420,182 @@ onMounted(() => {
       });
   }
 });
+
+const navigateToPost = (postId: number) => {
+  router.visit(`/posts/${postId}`);
+};
 </script>
 
 <template>
   <AppSidebarLayout>
-    <div class="h-screen flex overflow-hidden">
-      <div class="flex w-full max-w-[1000px] border border-[#C9C9C9] bg-white">
+    <div class="h-screen flex overflow-hidden justify-center bg-white md:bg-gray-50">
+      <div class="flex w-full max-w-[1000px] md:border md:border-[#C9C9C9] bg-white min-h-0">
 
-        <!-- Sidebar Chat -->
-        <div class="hidden md:block w-72 border-r border-[#C9C9C9] bg-white h-screen overflow-y-auto p-4 space-y-3">
-          <div class="flex items-center justify-between mb-3">
-            <div class="font-semibold text-lg text-black flex items-center gap-2">
-              Chat
+        <!-- Sidebar Chat - Hidden on mobile when chat is open -->
+        <div class="w-full md:w-72 border-r border-[#C9C9C9] bg-white h-screen overflow-y-auto"
+          :class="{ 'hidden md:block': chatUser }">
+          <div class="p-4 space-y-3 sticky top-0 bg-white z-10 border-b border-[#C9C9C9]">
+            <div class="flex items-center justify-between">
+              <div class="font-semibold text-lg md:text-xl text-black flex items-center gap-2">
+                Chat
+              </div>
+
+              <button @click="showUserModal = true"
+                class="bg-red-500 hover:bg-red-600 text-white p-2 rounded-full transition" title="Start new chat">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24"
+                  stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+              </button>
             </div>
 
-            <button @click="showUserModal = true"
-              class="bg-red-500 hover:bg-red-600 text-white p-2 rounded-full transition" title="Start new chat">
-              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24"
-                stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-              </svg>
-            </button>
-          </div>
-
-          <!-- Search -->
-          <div class="relative">
-            <input v-model="searchQuery" type="text"
-              class="w-full px-3 py-2 border border-[#C9C9C9] rounded-lg bg-white text-black text-sm"
-              placeholder="Search..." />
-          </div>
-
-          <div v-if="loading" class="text-sm text-gray-500">Loading...</div>
-
-          <div v-else>
-            <!-- Empty state -->
-            <div v-if="filteredChats.length === 0" class="flex flex-col items-center justify-center py-8 text-center">
-              <svg xmlns="http://www.w3.org/2000/svg" class="w-16 h-16 text-gray-300 mb-3" fill="none"
-                viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                  d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-              </svg>
-              <p class="text-sm text-gray-500 mb-1">No conversations yet</p>
+            <!-- Search -->
+            <div class="relative">
+              <input v-model="searchQuery" type="text"
+                class="w-full px-3 py-2 border border-[#C9C9C9] rounded-lg bg-white text-black text-sm focus:outline-none focus:border-red-500"
+                placeholder="Search..." />
             </div>
+          </div>
 
-            <!-- Chat list -->
-            <div v-for="chat in filteredChats" :key="chat.user.id" class="mb-1 text-gray-600">
-              <Link :href="`/chat/${chat.user.id}`"
-                class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-100 transition relative"
-                :class="{ 'bg-red-50': chatUser?.id === chat.user.id }">
+          <div class="p-4 pt-0">
+            <div v-if="loading" class="text-sm text-gray-500 text-center py-4">Loading...</div>
 
-                <div class="relative">
-                  <div v-if="chat.user.avatar" class="w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
-                    <img :src="chat.user.avatar" class="w-full h-full object-cover" />
-                  </div>
-                  <div v-else
-                    class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium text-white flex-shrink-0"
-                    :style="{ backgroundColor: getAvatarColor(chat.user.name) }">
-                    {{ getInitials(chat.user.name) }}
-                  </div>
-                  <span v-if="chat.unread_count && chat.unread_count > 0"
-                    class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
-                    {{ chat.unread_count > 9 ? '9+' : chat.unread_count }}
-                  </span>
-                </div>
+            <div v-else>
+              <!-- Empty state -->
+              <div v-if="filteredChats.length === 0" class="flex flex-col items-center justify-center py-8 text-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-12 h-12 md:w-16 md:h-16 text-gray-300 mb-3" fill="none"
+                  viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                    d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+                <p class="text-sm text-gray-500 mb-1">No conversations yet</p>
+              </div>
 
-                <div class="flex-1 min-w-0">
-                  <div class="flex items-center justify-between gap-2 mb-1">
-                    <div class="font-semibold truncate text-black">{{ chat.user.name }}</div>
-                    <div class="text-xs text-gray-500 whitespace-nowrap">
-                      {{ chat.last_message_at ? formatTime(chat.last_message_at) : '' }}
+              <!-- Chat list -->
+              <div class="space-y-1">
+                <div v-for="chat in filteredChats" :key="chat.user.id" class="text-gray-600">
+                  <Link :href="`/chat/${chat.user.id}`"
+                    class="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 active:bg-gray-200 transition relative"
+                    :class="{ 'bg-red-50': chatUser?.id === chat.user.id }">
+
+                    <div class="relative">
+                      <!-- Avatar -->
+                      <div v-if="getUserAvatar(chat.user)"
+                        class="w-10 h-10 md:w-12 md:h-12 rounded-full overflow-hidden flex-shrink-0">
+                        <img :src="getUserAvatar(chat.user)!" :alt="chat.user.name"
+                          class="w-full h-full object-cover" />
+                      </div>
+                      <div v-else
+                        class="w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center text-sm font-medium text-white flex-shrink-0"
+                        :style="{ backgroundColor: getAvatarColor(chat.user.name) }">
+                        {{ getInitials(chat.user.name) }}
+                      </div>
+                      <span v-if="chat.unread_count && chat.unread_count > 0"
+                        class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                        {{ chat.unread_count > 9 ? '9+' : chat.unread_count }}
+                      </span>
                     </div>
-                  </div>
-                  <div class="flex items-center gap-1.5 text-xs">
-                    <template v-if="chat.last_message && chat.unread_count === 0">
-                      <svg v-if="chat.is_read" class="w-4 h-4 text-blue-500 flex-shrink-0" viewBox="0 0 24 24"
-                        fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M20 6L9 17l-5-5" />
-                        <path d="M9 17l11-11" />
-                      </svg>
-                      <svg v-else class="w-3.5 h-3.5 text-gray-400 flex-shrink-0" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2">
-                        <path d="M20 6L9 17l-5-5" />
-                      </svg>
-                    </template>
 
-                    <span class="truncate" :class="{
-                      'font-semibold text-gray-900': chat.unread_count && chat.unread_count > 0,
-                      'text-gray-500': !chat.unread_count || chat.unread_count === 0
-                    }">
-                      {{ chat.last_message ?? "No messages yet" }}
-                    </span>
-                  </div>
+                    <div class="flex-1 min-w-0">
+                      <div class="flex items-center justify-between gap-2 mb-1">
+                        <div class="font-semibold truncate text-black text-sm md:text-base">{{ chat.user.name }}</div>
+                        <div class="text-xs text-gray-500 whitespace-nowrap">
+                          {{ chat.last_message_at ? formatTime(chat.last_message_at) : '' }}
+                        </div>
+                      </div>
+                      <div class="flex items-center gap-1.5 text-xs">
+                        <template v-if="chat.last_message && chat.unread_count === 0">
+                          <svg v-if="chat.is_read" class="w-3.5 h-3.5 md:w-4 md:h-4 text-blue-500 flex-shrink-0"
+                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M20 6L9 17l-5-5" />
+                            <path d="M9 17l11-11" />
+                          </svg>
+                          <svg v-else class="w-3 h-3 md:w-3.5 md:h-3.5 text-gray-400 flex-shrink-0" viewBox="0 0 24 24"
+                            fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M20 6L9 17l-5-5" />
+                          </svg>
+                        </template>
+
+                        <span class="truncate" :class="{
+                          'font-semibold text-gray-900': chat.unread_count && chat.unread_count > 0,
+                          'text-gray-500': !chat.unread_count || chat.unread_count === 0
+                        }">
+                          {{ chat.last_message ?? "No messages yet" }}
+                        </span>
+                      </div>
+                    </div>
+                  </Link>
                 </div>
-              </Link>
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- Chat Panel -->
-        <div class="flex flex-col flex-1 bg-white">
+        <!-- Chat Panel - Full width on mobile -->
+        <div class="flex flex-col flex-1 bg-white" :class="{ 'hidden md:flex': !chatUser }">
 
           <!-- Header Chat -->
           <div v-if="chatUser"
-            class="p-4 border-b border-[#C9C9C9] bg-white text-black flex items-center gap-2 font-semibold">
-            <div v-if="chatUser?.avatar" class="w-8 h-8 rounded-full overflow-hidden">
-              <img :src="chatUser.avatar" class="w-full h-full object-cover" />
+            class="p-3 md:p-4 border-b border-[#C9C9C9] bg-white text-black flex items-center gap-2 font-semibold sticky top-0 z-10">
+            <!-- Back button for mobile -->
+            <Link :href="'/chat'" class="md:hidden mr-2">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-gray-700" fill="none" viewBox="0 0 24 24"
+                stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+              </svg>
+            </Link>
+
+            <!-- Avatar -->
+            <div v-if="getUserAvatar(chatUser)" class="w-8 h-8 md:w-10 md:h-10 rounded-full overflow-hidden">
+              <img :src="getUserAvatar(chatUser)!" :alt="chatUser.name" class="w-full h-full object-cover" />
             </div>
-            <div v-else-if="chatUser"
-              class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium text-white"
+            <div v-else
+              class="w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center text-xs font-medium text-white"
               :style="{ backgroundColor: getAvatarColor(chatUser.name) }">
               {{ getInitials(chatUser.name) }}
             </div>
-            <span>{{ chatUser?.name }}</span>
+            <span class="text-sm md:text-base">{{ chatUser.name }}</span>
           </div>
 
-          <div v-else class="p-4 border-b border-[#C9C9C9] bg-white text-black flex items-center gap-2 font-semibold">
-            <span class="text-gray-400">Select or start a chat</span>
+          <div v-else
+            class="p-3 md:p-4 border-b border-[#C9C9C9] bg-white text-black flex items-center gap-2 font-semibold">
+            <span class="text-gray-400 text-sm md:text-base">Select or start a chat</span>
           </div>
 
-          <!-- Messages -->
-          <div ref="chatContainer" class="flex-1 overflow-y-auto p-5 space-y-4 bg-white">
+          <!-- Messages Container -->
+          <div ref="chatContainer" class="flex-1 overflow-y-auto p-3 md:p-5 space-y-3 md:space-y-4 bg-white min-h-0">
             <!-- Empty state -->
-            <div v-if="!chatUser" class="flex flex-col items-center justify-center h-full text-center">
-              <svg xmlns="http://www.w3.org/2000/svg" class="w-24 h-24 text-gray-300 mb-4" fill="none"
+            <div v-if="!chatUser" class="flex flex-col items-center justify-center h-full text-center px-4">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-16 h-16 md:w-24 md:h-24 text-gray-300 mb-4" fill="none"
                 viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
                   d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
               </svg>
-              <h3 class="text-lg font-semibold text-gray-700 mb-2">Start a Conversation</h3>
-              <p class="text-sm text-gray-500 mb-4">Select a chat from the list or start a new chat</p>
+              <h3 class="text-base md:text-lg font-semibold text-gray-700 mb-2">Start a Conversation</h3>
+              <p class="text-xs md:text-sm text-gray-500 mb-4">Select a chat from the list or start a new chat</p>
               <button @click="showUserModal = true"
-                class="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg font-medium transition">
+                class="bg-red-500 hover:bg-red-600 text-white px-5 py-2 md:px-6 md:py-2.5 rounded-lg font-medium transition text-sm md:text-base">
                 Start New Chat
               </button>
             </div>
 
-            <!-- Messages list with date separators -->
+            <!-- Messages list -->
             <template v-else>
-              <div v-for="(msgs, date) in groupedMessages" :key="date" class="space-y-4">
+              <div v-for="(msgs, date) in groupedMessages" :key="date" class="space-y-3 md:space-y-4">
                 <!-- Date separator -->
-                <div class="flex items-center justify-center my-4">
+                <div class="flex items-center justify-center my-3 md:my-4">
                   <div class="bg-gray-200 text-gray-600 text-xs px-3 py-1 rounded-full font-medium">
                     {{ date }}
                   </div>
                 </div>
 
-                <!-- Messages for this date -->
+                <!-- Messages -->
                 <div v-for="msg in msgs" :key="msg.id" class="flex w-full group"
                   :class="msg.sender_id === authUser.id ? 'justify-end' : 'justify-start'">
 
-                  <!-- Dropdown Button (Left side) -->
-                  <div v-if="msg.sender_id !== authUser.id" class="relative flex items-start mt-2 dropdown-container">
+                  <!-- Dropdown Button (Left) - Hidden on mobile -->
+                  <div v-if="msg.sender_id !== authUser.id"
+                    class="hidden md:flex relative items-start mt-2 dropdown-container flex-shrink-0">
                     <button @click.stop="toggleDropdown(msg.id)"
                       class="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-200 rounded-full mr-2">
                       <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-gray-600" fill="none"
@@ -575,27 +620,47 @@ onMounted(() => {
                   </div>
 
                   <!-- Message Bubble -->
-                  <div class="px-4 py-2 rounded-2xl text-[15px] leading-relaxed shadow-sm
-                    max-w-[90%] sm:max-w-[80%] md:max-w-[70%] lg:max-w-[60%] break-words" :class="msg.sender_id === authUser.id
-                      ? 'bg-red-500 text-white'
-                      : 'bg-gray-100 text-black'">
+                  <div class="px-3 py-2 md:px-4 md:py-2 rounded-2xl text-sm md:text-[15px] leading-relaxed shadow-sm
+                    max-w-[85%] sm:max-w-[80%] md:max-w-[70%] lg:max-w-[60%] break-words relative group/bubble"
+                    :class="msg.sender_id === authUser.id ? 'bg-red-500 text-white' : 'bg-gray-100 text-black'">
+
+                    <!-- Mobile delete button (always visible on mobile) -->
+                    <button v-if="msg.sender_id === authUser.id" @click.stop="openDeleteModal(msg.id)"
+                      class="md:hidden absolute -top-2 -right-2 bg-white rounded-full p-1.5 shadow-md border border-gray-200 hover:bg-red-50 active:bg-red-100 z-10">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-red-500" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+
+                    <button v-if="msg.sender_id !== authUser.id" @click.stop="openDeleteModal(msg.id)"
+                      class="md:hidden absolute -top-2 -left-2 bg-white rounded-full p-1.5 shadow-md border border-gray-200 hover:bg-red-50 active:bg-red-100 z-10">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-red-500" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
 
                     <!-- Shared Post -->
-                    <div v-if="msg.shared_post" class="mb-2 border rounded-lg overflow-hidden"
+                    <div v-if="msg.shared_post" @click="navigateToPost(msg.shared_post.id)"
+                      class="mb-2 border rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
                       :class="msg.sender_id === authUser.id ? 'border-white/20' : 'border-gray-300'">
-                      <div class="p-3" :class="msg.sender_id === authUser.id ? 'bg-white/10' : 'bg-white'">
+                      <div class="p-2 md:p-3" :class="msg.sender_id === authUser.id ? 'bg-white/10' : 'bg-white'">
                         <!-- Post Header -->
                         <div class="flex items-center gap-2 mb-2">
-                          <div v-if="msg.shared_post.user_avatar" class="w-6 h-6 rounded-full overflow-hidden">
+                          <div v-if="msg.shared_post.user_avatar"
+                            class="w-5 h-5 md:w-6 md:h-6 rounded-full overflow-hidden flex-shrink-0">
                             <img :src="msg.shared_post.user_avatar" class="w-full h-full object-cover" />
                           </div>
                           <div v-else
-                            class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium text-white"
+                            class="w-5 h-5 md:w-6 md:h-6 rounded-full flex items-center justify-center text-xs font-medium text-white flex-shrink-0"
                             :style="{ backgroundColor: getAvatarColor(msg.shared_post.user_name) }">
                             {{ getInitials(msg.shared_post.user_name) }}
                           </div>
-                          <div>
-                            <div class="text-xs font-semibold"
+                          <div class="min-w-0">
+                            <div class="text-xs font-semibold truncate"
                               :class="msg.sender_id === authUser.id ? 'text-white' : 'text-black'">
                               {{ msg.shared_post.user_name }}
                             </div>
@@ -615,7 +680,7 @@ onMounted(() => {
                         <!-- Post Images -->
                         <div v-if="msg.shared_post.images?.length" class="grid grid-cols-2 gap-1 mb-2">
                           <img v-for="(image, index) in msg.shared_post.images" :key="index" :src="image"
-                            class="w-full h-16 object-cover rounded" />
+                            class="w-full h-12 md:h-16 object-cover rounded" @click.stop />
                         </div>
 
                         <!-- Post Stats -->
@@ -625,16 +690,27 @@ onMounted(() => {
                           <span v-if="msg.shared_post.comments_count">{{ msg.shared_post.comments_count }}
                             comments</span>
                         </div>
+
+                        <!-- Click to view indicator -->
+                        <div class="flex items-center gap-1 mt-2 text-[10px]"
+                          :class="msg.sender_id === authUser.id ? 'text-white/50' : 'text-gray-400'">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                          </svg>
+                          <span>Click to view post</span>
+                        </div>
                       </div>
                     </div>
 
                     <!-- Message Text -->
-                    <div v-if="msg.message">{{ msg.message }}</div>
+                    <div v-if="msg.message" class="break-words whitespace-pre-wrap">{{ msg.message }}</div>
 
                     <!-- Images -->
                     <div v-if="msg.images?.length" class="mt-2 grid grid-cols-2 gap-1">
                       <img v-for="(image, index) in msg.images" :key="index" :src="image"
-                        class="w-full h-20 object-cover rounded border border-gray-300 cursor-pointer hover:opacity-90 transition"
+                        class="w-full h-16 md:h-20 object-cover rounded border border-gray-300 cursor-pointer hover:opacity-90 transition"
                         @click="openImageViewer(msg.images!, index)" />
                     </div>
 
@@ -644,17 +720,20 @@ onMounted(() => {
 
                       <template v-if="msg.sender_id === authUser.id">
                         <svg v-if="msg.status === 'sent'" xmlns="http://www.w3.org/2000/svg"
-                          class="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          class="w-4 h-4 md:w-5 md:h-5 text-gray-400" fill="none" viewBox="0 0 24 24"
+                          stroke="currentColor">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                         </svg>
 
                         <svg v-if="msg.status === 'delivered'" xmlns="http://www.w3.org/2000/svg"
-                          class="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          class="w-4 h-4 md:w-5 md:h-5 text-gray-500" fill="none" viewBox="0 0 24 24"
+                          stroke="currentColor">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2 12l6 6 10-10" />
                         </svg>
 
                         <svg v-if="msg.status === 'read'" xmlns="http://www.w3.org/2000/svg"
-                          class="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          class="w-4 h-4 md:w-5 md:h-5 text-blue-500" fill="none" viewBox="0 0 24 24"
+                          stroke="currentColor">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M2 12l6 6 10-10 M8 12l6 6 10-10" />
                         </svg>
@@ -662,8 +741,9 @@ onMounted(() => {
                     </div>
                   </div>
 
-                  <!-- Dropdown Button (Right side) -->
-                  <div v-if="msg.sender_id === authUser.id" class="relative flex items-start mt-2 dropdown-container">
+                  <!-- Dropdown Button (Right) - Hidden on mobile -->
+                  <div v-if="msg.sender_id === authUser.id"
+                    class="hidden md:flex relative items-start mt-2 dropdown-container flex-shrink-0">
                     <button @click.stop="toggleDropdown(msg.id)"
                       class="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-200 rounded-full ml-2">
                       <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-gray-600" fill="none"
@@ -688,18 +768,20 @@ onMounted(() => {
                   </div>
                 </div>
               </div>
+
+              <div class="h-4"></div>
             </template>
           </div>
 
           <!-- Input Box -->
-          <div class="border-t border-[#C9C9C9] px-4 py-3 bg-white">
-            <div class="flex items-center gap-3">
+          <div class="border-t border-[#C9C9C9] px-3 py-2 md:px-4 md:py-3 bg-white">
+            <div class="flex items-center gap-2 md:gap-3">
               <input v-model="newMessage" @keyup.enter="sendMessage" :disabled="!chatUser"
-                class="flex-1 border border-[#C9C9C9] rounded-full px-4 py-2 focus:outline-none focus:border-purple-500 text-black disabled:bg-gray-100 disabled:cursor-not-allowed"
+                class="flex-1 border border-[#C9C9C9] rounded-full px-3 py-2 md:px-4 text-sm md:text-base focus:outline-none focus:border-red-500 text-black disabled:bg-gray-100 disabled:cursor-not-allowed"
                 :placeholder="chatUser ? 'Type a message...' : 'Select a chat first...'" />
 
               <button @click="sendMessage" :disabled="!chatUser"
-                class="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-full font-medium transition disabled:opacity-50 disabled:cursor-not-allowed">
+                class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 md:px-6 rounded-full font-medium transition disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base">
                 Send
               </button>
             </div>
@@ -711,47 +793,48 @@ onMounted(() => {
 
     <!-- User Selection Modal -->
     <div v-if="showUserModal"
-      class="fixed inset-0 backdrop-blur bg-opacity-50 flex items-center justify-center z-50 p-4"
+      class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
       @click.self="showUserModal = false">
-      <div class="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[80vh] flex flex-col">
-        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <h3 class="text-lg font-semibold text-black">Select User</h3>
+      <div class="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[85vh] md:max-h-[80vh] flex flex-col">
+        <div class="px-4 py-3 md:px-6 md:py-4 border-b border-gray-200 flex items-center justify-between">
+          <h3 class="text-base md:text-lg font-semibold text-black">Select User</h3>
           <button @click="showUserModal = false" class="text-gray-400 hover:text-gray-600 transition">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24"
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 md:w-6 md:h-6" fill="none" viewBox="0 0 24 24"
               stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
-        <div class="px-6 py-3 border-b border-gray-200">
+        <div class="px-4 py-2 md:px-6 md:py-3 border-b border-gray-200">
           <input v-model="userSearchQuery" type="text"
             class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-red-500 text-gray-800"
             placeholder="Search users..." />
         </div>
 
-        <div class="flex-1 overflow-y-auto p-4">
-          <div v-if="loadingUsers" class="text-center py-8 text-gray-500">
+        <div class="flex-1 overflow-y-auto p-3 md:p-4 min-h-0">
+          <div v-if="loadingUsers" class="text-center py-8 text-gray-500 text-sm">
             Loading users...
           </div>
 
-          <div v-else-if="filteredUsers.length === 0" class="text-center py-8 text-gray-500">
+          <div v-else-if="filteredUsers.length === 0" class="text-center py-8 text-gray-500 text-sm">
             No users found
           </div>
 
           <div v-else class="space-y-2">
             <button v-for="user in filteredUsers" :key="user.id" @click="startNewChat(user)"
-              class="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 transition text-left">
-              <div v-if="user.avatar" class="w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
-                <img :src="user.avatar" class="w-full h-full object-cover" />
+              class="w-full flex items-center gap-3 p-2 md:p-3 rounded-lg hover:bg-gray-100 active:bg-gray-200 transition text-left">
+              <div v-if="getUserAvatar(user)"
+                class="w-10 h-10 md:w-12 md:h-12 rounded-full overflow-hidden flex-shrink-0">
+                <img :src="getUserAvatar(user)!" :alt="user.name" class="w-full h-full object-cover" />
               </div>
               <div v-else
-                class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium text-white flex-shrink-0"
+                class="w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center text-sm font-medium text-white flex-shrink-0"
                 :style="{ backgroundColor: getAvatarColor(user.name) }">
                 {{ getInitials(user.name) }}
               </div>
               <div class="flex-1 min-w-0">
-                <div class="font-semibold text-black">{{ user.name }}</div>
+                <div class="font-semibold text-black text-sm md:text-base truncate">{{ user.name }}</div>
               </div>
             </button>
           </div>
@@ -774,34 +857,35 @@ onMounted(() => {
           <Transition enter-active-class="transition-all duration-200" enter-from-class="opacity-0 scale-95"
             enter-to-class="opacity-100 scale-100" leave-active-class="transition-all duration-200"
             leave-from-class="opacity-100 scale-100" leave-to-class="opacity-0 scale-95">
-            <div v-if="showDeleteModal" class="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden"
+            <div v-if="showDeleteModal"
+              class="bg-white rounded-xl md:rounded-2xl shadow-2xl max-w-sm md:max-w-md w-full overflow-hidden"
               @click.stop>
-              <div class="bg-gradient-to-r from-red-500 to-red-600 p-6">
-                <div class="flex items-center justify-center mb-4">
-                  <div class="bg-white/20 backdrop-blur-sm rounded-full p-3">
-                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div class="bg-gradient-to-r from-red-500 to-red-600 p-4 md:p-6">
+                <div class="flex items-center justify-center mb-3 md:mb-4">
+                  <div class="bg-white/20 backdrop-blur-sm rounded-full p-2 md:p-3">
+                    <svg class="w-6 h-6 md:w-8 md:h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                         d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                     </svg>
                   </div>
                 </div>
-                <h3 class="text-2xl font-bold text-white text-center">
+                <h3 class="text-xl md:text-2xl font-bold text-white text-center">
                   Delete Message?
                 </h3>
               </div>
 
-              <div class="p-6">
-                <p class="text-gray-600 text-center mb-6">
+              <div class="p-4 md:p-6">
+                <p class="text-sm md:text-base text-gray-600 text-center mb-4 md:mb-6">
                   This action cannot be undone. This message will be permanently deleted from the conversation.
                 </p>
 
-                <div class="flex gap-3">
+                <div class="flex flex-col sm:flex-row gap-2 md:gap-3">
                   <button @click="closeDeleteModal"
-                    class="flex-1 px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-xl transition-colors duration-200">
+                    class="flex-1 px-4 py-2.5 md:py-3 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 text-gray-700 font-medium rounded-lg md:rounded-xl transition-colors duration-200 text-sm md:text-base">
                     Cancel
                   </button>
                   <button @click="confirmDeleteMessage"
-                    class="flex-1 px-4 py-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-medium rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl">
+                    class="flex-1 px-4 py-2.5 md:py-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 active:from-red-700 active:to-red-800 text-white font-medium rounded-lg md:rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl text-sm md:text-base">
                     Delete
                   </button>
                 </div>

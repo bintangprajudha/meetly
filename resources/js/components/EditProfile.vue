@@ -6,8 +6,10 @@ interface User {
   id: number;
   name: string;
   email: string;
+  username?: string;
   bio?: string;
   avatar?: string | null;
+  banner?: string | null;
   location?: string;
   website?: string;
 }
@@ -17,34 +19,61 @@ const props = defineProps<{
 }>();
 
 const showEditModal = ref(false);
-const avatarPreview = ref<string | null>(props.user.avatar ?? null);
+const avatarPreview = ref<string | null>(
+  props.user.avatar ? `/storage/${props.user.avatar}` : null
+);
+const bannerPreview = ref<string | null>(
+  props.user.banner ? `/storage/${props.user.banner}` : null
+);
+
 const avatarFile = ref<File | null>(null);
+const bannerFile = ref<File | null>(null);
+
+// Track if user wants to remove banner/avatar
+const shouldRemoveBanner = ref(false);
+const shouldRemoveAvatar = ref(false);
 
 const form = useForm({
   name: props.user.name,
+  username: props.user.username ?? '',
   bio: props.user.bio ?? '',
   location: props.user.location ?? '',
   website: props.user.website ?? '',
   avatar: null as File | null,
+  banner: null as File | null,
+  remove_banner: false,
+  remove_avatar: false,
 });
 
 const openEditModal = () => {
   showEditModal.value = true;
-  // Reset form with current user data
   form.name = props.user.name;
+  form.username = props.user.username ?? '';
   form.bio = props.user.bio ?? '';
   form.location = props.user.location ?? '';
   form.website = props.user.website ?? '';
-  avatarPreview.value = props.user.avatar ?? null;
+  avatarPreview.value = props.user.avatar ? `/storage/${props.user.avatar}` : null;
+  bannerPreview.value = props.user.banner ? `/storage/${props.user.banner}` : null;
   avatarFile.value = null;
+  bannerFile.value = null;
+  form.avatar = null;
+  form.banner = null;
+  form.remove_banner = false;
+  form.remove_avatar = false;
+  shouldRemoveBanner.value = false;
+  shouldRemoveAvatar.value = false;
 };
 
 const closeEditModal = () => {
   showEditModal.value = false;
   form.reset();
   form.clearErrors();
-  avatarPreview.value = props.user.avatar ?? null;
+  avatarPreview.value = props.user.avatar ? `/storage/${props.user.avatar}` : null;
+  bannerPreview.value = props.user.banner ? `/storage/${props.user.banner}` : null;
   avatarFile.value = null;
+  bannerFile.value = null;
+  shouldRemoveBanner.value = false;
+  shouldRemoveAvatar.value = false;
 };
 
 const handleAvatarChange = (event: Event) => {
@@ -52,22 +81,21 @@ const handleAvatarChange = (event: Event) => {
   const file = target.files?.[0];
   
   if (file) {
-    // Validate file type
     if (!file.type.startsWith('image/')) {
       alert('Please select an image file');
       return;
     }
     
-    // Validate file size (max 2MB)
-    if (file.size > 2 * 1024 * 1024) {
-      alert('Image size must be less than 2MB');
+    if (file.size > 10 * 1024 * 1024) {
+      alert('Image size must be less than 10MB');
       return;
     }
     
     avatarFile.value = file;
     form.avatar = file;
+    shouldRemoveAvatar.value = false;
+    form.remove_avatar = false;
     
-    // Create preview
     const reader = new FileReader();
     reader.onload = (e) => {
       avatarPreview.value = e.target?.result as string;
@@ -80,21 +108,131 @@ const removeAvatar = () => {
   avatarPreview.value = null;
   avatarFile.value = null;
   form.avatar = null;
-  
-  // Reset file input
+  shouldRemoveAvatar.value = true;
+  form.remove_avatar = true;
+
   const fileInput = document.getElementById('avatar-input') as HTMLInputElement;
   if (fileInput) {
     fileInput.value = '';
   }
 };
 
+const handleBannerChange = (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  const file = target.files?.[0];
+  
+  if (file) {
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file');
+      return;
+    }
+    
+    if (file.size > 10 * 1024 * 1024) {
+      alert('Image size must be less than 10MB');
+      return;
+    }
+    
+    bannerFile.value = file;
+    form.banner = file;
+    shouldRemoveBanner.value = false;
+    form.remove_banner = false;
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      bannerPreview.value = e.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  }
+};
+
+const removeBanner = () => {
+  bannerPreview.value = null;
+  bannerFile.value = null;
+  form.banner = null;
+  shouldRemoveBanner.value = true;
+  form.remove_banner = true;
+  
+  const fileInput = document.getElementById('banner-input') as HTMLInputElement;
+  if (fileInput) {
+    fileInput.value = '';
+  }
+};
+
 const submitForm = () => {
-  form.post('/profile/update', {
+  console.log('Form data before submit:', {
+    avatar: form.avatar instanceof File,
+    banner: form.banner instanceof File,
+    remove_banner: form.remove_banner,
+    remove_avatar: form.remove_avatar,
+    name: form.name,
+    username: form.username,
+  });
+
+  form.transform((data) => {
+    const formData = new FormData();
+    
+    // Add text fields
+    formData.append('name', data.name);
+    if (data.username) formData.append('username', data.username);
+    if (data.bio) formData.append('bio', data.bio);
+    if (data.location) formData.append('location', data.location);
+    if (data.website) formData.append('website', data.website);
+    
+    // Add files
+    if (data.avatar instanceof File) {
+      formData.append('avatar', data.avatar);
+    }
+    if (data.banner instanceof File) {
+      formData.append('banner', data.banner);
+    }
+    
+    // Add remove flags
+    if (data.remove_banner) {
+      formData.append('remove_banner', '1');
+    }
+    if (data.remove_avatar) {
+      formData.append('remove_avatar', '1');
+    }
+    
+    return formData;
+  }).post('/profile/update', {
     preserveScroll: true,
     onSuccess: () => {
       closeEditModal();
+      window.location.reload();
+    },
+    onError: (errors) => {
+      console.error('Upload errors:', errors);
     },
   });
+};
+
+// Helper functions
+const getInitials = (name: string) => {
+  if (!name) return 'U';
+  return name
+    .split(' ')
+    .map((word) => word.charAt(0))
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+};
+
+const getAvatarColor = (name: string) => {
+  if (!name) return '#6B7280';
+
+  const colors = [
+    '#EF4444', '#F97316', '#F59E0B', '#EAB308',
+    '#84CC16', '#22C55E', '#10B981', '#14B8A6',
+    '#06B6D4', '#0EA5E9', '#3B82F6', '#6366F1',
+    '#8B5CF6', '#A855F7', '#D946EF', '#EC4899',
+  ];
+
+  const hash = name.split('').reduce((acc, char) => {
+    return acc + char.charCodeAt(0);
+  }, 0);
+
+  return colors[hash % colors.length];
 };
 </script>
 
@@ -112,7 +250,7 @@ const submitForm = () => {
     <Teleport to="body">
       <div
         v-if="showEditModal"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4"
+        class="fixed inset-0 z-50 flex items-center justify-center backdrop-blur bg-opacity-50 p-4"
         @click.self="closeEditModal"
       >
         <div class="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white rounded-2xl shadow-xl">
@@ -131,17 +269,80 @@ const submitForm = () => {
 
           <!-- Modal Body -->
           <form @submit.prevent="submitForm" class="p-6 space-y-6">
+            <!-- Banner Section -->
+            <div class="space-y-3">
+              <label class="block text-sm font-semibold text-gray-900">Cover Photo</label>
+              <div class="relative">
+                <!-- Banner Preview -->
+                <div class="relative h-48 w-full rounded-lg overflow-hidden bg-gradient-to-br from-slate-200 via-slate-300 to-slate-200">
+                  <img
+                    v-if="bannerPreview"
+                    :src="bannerPreview"
+                    alt="Banner"
+                    class="h-full w-full object-cover"
+                  />
+                  
+                  <!-- Upload/Remove Buttons Overlay -->
+                  <div class="absolute inset-0 flex items-center justify-center gap-3">
+                    <!-- Upload Button -->
+                    <input
+                      id="banner-input"
+                      type="file"
+                      accept="image/*"
+                      @change="handleBannerChange"
+                      class="hidden"
+                    />
+                    <label
+                      for="banner-input"
+                      class="cursor-pointer rounded-full bg-black/60 p-3 text-white backdrop-blur-sm transition hover:bg-black/80"
+                    >
+                      <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                    </label>
+                    
+                    <!-- Remove Button -->
+                    <button
+                      v-if="bannerPreview"
+                      @click="removeBanner"
+                      type="button"
+                      class="rounded-full bg-black/60 p-3 text-white backdrop-blur-sm transition hover:bg-black/80"
+                    >
+                      <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div v-if="form.errors.banner" class="text-sm text-red-600">
+                {{ form.errors.banner }}
+              </div>
+            </div>
+
             <!-- Avatar Section -->
             <div class="space-y-3">
               <label class="block text-sm font-semibold text-gray-900">Profile Picture</label>
               <div class="flex items-center gap-4">
                 <!-- Avatar Preview -->
                 <div class="relative">
+                  <!-- Show avatar image if exists -->
                   <img
-                    :src="avatarPreview ?? '/profile.png'"
+                    v-if="avatarPreview"
+                    :src="avatarPreview"
                     alt="Profile"
                     class="h-24 w-24 rounded-full object-cover border-2 border-gray-200"
                   />
+                  <!-- Show initials if no avatar -->
+                  <div
+                    v-else
+                    class="h-24 w-24 rounded-full border-2 border-gray-200 flex items-center justify-center text-2xl font-bold text-white"
+                    :style="{ backgroundColor: getAvatarColor(user.name) }"
+                  >
+                    {{ getInitials(user.name) }}
+                  </div>
+                  
                   <button
                     v-if="avatarPreview"
                     @click="removeAvatar"
@@ -172,7 +373,6 @@ const submitForm = () => {
                     </svg>
                     Choose Photo
                   </label>
-                  <p class="mt-2 text-xs text-gray-500">JPG, PNG or GIF. Max 2MB.</p>
                 </div>
               </div>
               <div v-if="form.errors.avatar" class="text-sm text-red-600">
@@ -191,7 +391,7 @@ const submitForm = () => {
                 type="text"
                 required
                 maxlength="50"
-                class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-gray-900 placeholder-gray-500 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+                class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 placeholder="Your name"
               />
               <div class="flex justify-between text-xs">
@@ -210,13 +410,13 @@ const submitForm = () => {
                   v-model="form.username"
                   type="text"
                   maxlength="30"
-                  class="w-full rounded-lg border border-gray-300 pl-8 pr-4 py-2.5 text-gray-900 placeholder-gray-500 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+                  class="w-full rounded-lg border border-gray-300 pl-8 pr-4 py-2.5 text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   placeholder="username"
                 />
               </div>
               <div class="flex justify-between text-xs">
                 <span v-if="form.errors.username" class="text-red-600">{{ form.errors.username }}</span>
-                <span class="text-gray-500 ml-auto">{{ form.username.length }}/30</span>
+                <span class="text-gray-500 ml-auto">{{ (form.username?.length || 0) }}/30</span>
               </div>
             </div>
 
@@ -228,7 +428,7 @@ const submitForm = () => {
                 v-model="form.bio"
                 rows="4"
                 maxlength="160"
-                class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-gray-900 placeholder-gray-500 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 resize-none"
+                class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
                 placeholder="Write a short bio about yourself..."
               ></textarea>
               <div class="flex justify-between text-xs">
@@ -250,7 +450,7 @@ const submitForm = () => {
                   v-model="form.location"
                   type="text"
                   maxlength="50"
-                  class="w-full rounded-lg border border-gray-300 pl-10 pr-4 py-2.5 text-gray-900 placeholder-gray-500 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+                  class="w-full rounded-lg border border-gray-300 pl-10 pr-4 py-2.5 text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   placeholder="City, Country"
                 />
               </div>
@@ -271,7 +471,7 @@ const submitForm = () => {
                   v-model="form.website"
                   type="url"
                   maxlength="100"
-                  class="w-full rounded-lg border border-gray-300 pl-10 pr-4 py-2.5 text-gray-900 placeholder-gray-500 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+                  class="w-full rounded-lg border border-gray-300 pl-10 pr-4 py-2.5 text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   placeholder="https://yourwebsite.com"
                 />
               </div>
@@ -293,7 +493,7 @@ const submitForm = () => {
               <button
                 type="submit"
                 :disabled="form.processing"
-                class="rounded-full bg-red-500 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                class="rounded-full bg-black px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 <svg v-if="form.processing" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
                   <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
