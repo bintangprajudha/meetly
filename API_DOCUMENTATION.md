@@ -12,29 +12,6 @@ http://localhost:8000
 
 Meetly menggunakan session-based authentication dengan Laravel Fortify.  Semua request yang memerlukan autentikasi harus menyertakan CSRF token dan cookie session yang valid.
 
-### Headers
-
-```
-Content-Type: application/json
-Accept: application/json
-X-CSRF-TOKEN: {csrf_token}
-```
-
-### Mendapatkan CSRF Token
-
-```http
-GET /csrf-token
-```
-
-**Response:**
-```json
-{
-  "csrf_token": "xyzabc123..."
-}
-```
-
----
-
 ## Authentication Endpoints
 
 ### 1. Show Login Form
@@ -612,7 +589,7 @@ DELETE /users/{user}/follow
 ### 1. Get User Profile
 
 ```http
-GET /users/{user}
+GET /@{username}
 ```
 
 **Middleware:** auth
@@ -654,7 +631,7 @@ GET /users/{user}
 ### 2. Update Profile
 
 ```http
-PUT /profile
+POST /profile/update
 ```
 
 **Middleware:** auth
@@ -697,7 +674,7 @@ PUT /profile
 ### 1. Create Repost
 
 ```http
-POST /reposts
+POST /posts/{post}/repost
 ```
 
 **Middleware:** auth
@@ -770,7 +747,7 @@ DELETE /reposts/{repost}
 ### 1. Get All Messages/Conversations
 
 ```http
-GET /messages
+GET /api/messages
 ```
 
 **Middleware:** auth
@@ -804,7 +781,7 @@ GET /messages
 ### 2. Get Messages with Specific User
 
 ```http
-GET /messages/{user}
+GET /api/messages/{user}
 ```
 
 **Middleware:** auth
@@ -846,78 +823,6 @@ GET /messages/{user}
       "created_at": "2025-12-21T09:30:00.000000Z"
     }
   ]
-}
-```
-
----
-
-### 3. Send Message
-
-```http
-POST /messages
-```
-
-**Middleware:** auth
-
-**Request Body:**
-```json
-{
-  "receiver_id": 2,
-  "message": "Hello! How are you doing?"
-}
-```
-
-**Validation Rules:**
-- `receiver_id`: required, exists:users,id, not:auth. id
-- `message`: required, string, max:1000
-
-**Success Response (201):**
-```json
-{
-  "message": "Message sent successfully",
-  "data": {
-    "id": 51,
-    "sender_id": 1,
-    "receiver_id": 2,
-    "message": "Hello! How are you doing?",
-    "is_read": false,
-    "created_at": "2025-12-21T10:00:00.000000Z",
-    "updated_at": "2025-12-21T10:00:00.000000Z"
-  }
-}
-```
-
-**Error Response (400):**
-```json
-{
-  "message":  "Cannot send message to yourself"
-}
-```
-
----
-
-### 4. Mark Message as Read
-
-```http
-PUT /messages/{message}/read
-```
-
-**Middleware:** auth
-
-**Authorization:** User must be the receiver
-
-**URL Parameters:**
-- `message` (integer, required): Message ID
-
-**Success Response (200):**
-```json
-{
-  "message": "Message marked as read",
-  "data": {
-    "id": 50,
-    "is_read": true,
-    "updated_at": "2025-12-21T10:00:00.000000Z"
-  }
 }
 ```
 
@@ -986,7 +891,7 @@ GET /notifications
 ### 2. Mark Notification as Read
 
 ```http
-POST /notifications/{notification}/read
+POST /notifications/{id}/read
 ```
 
 **Middleware:** auth
@@ -1030,7 +935,7 @@ POST /notifications/read-all
 ### 4. Delete Notification
 
 ```http
-DELETE /notifications/{notification}
+DELETE /notifications/{id}
 ```
 
 **Middleware:** auth
@@ -1101,7 +1006,7 @@ POST /reports
 ### 2. Get All Reports (Admin)
 
 ```http
-GET /admin/reports
+GET /admin/dashboard
 ```
 
 **Middleware:** auth, admin
@@ -1150,7 +1055,7 @@ GET /admin/reports
 ### 3. Update Report Status (Admin)
 
 ```http
-PUT /admin/reports/{report}
+PATCH /reports/{report}/status
 ```
 
 **Middleware:** auth, admin
@@ -1223,48 +1128,6 @@ GET /explore
   }
 }
 ```
-
----
-
-### 2. Search
-
-```http
-GET /search
-```
-
-**Middleware:** auth
-
-**Query Parameters:**
-- `q` (string, required): Search query
-- `type` (string, optional): users, posts, all (default: all)
-
-**Success Response (200):**
-```json
-{
-  "users": [
-    {
-      "id": 3,
-      "name": "Bob Smith",
-      "email": "bob@example.com",
-      "avatar_url": "/storage/avatars/bob.jpg",
-      "followers_count": 50
-    }
-  ],
-  "posts": [
-    {
-      "id": 8,
-      "content": "Post containing search query...",
-      "user": {
-        "id": 3,
-        "name": "Bob Smith"
-      },
-      "likes_count": 10,
-      "created_at": "2025-12-20T10:00:00.000000Z"
-    }
-  ]
-}
-```
-
 ---
 
 ## Bookmark Endpoints
@@ -1369,23 +1232,6 @@ GET /bookmarks
 
 ---
 
-## Rate Limiting
-
-API endpoints are rate limited to prevent abuse:
-
-- **Authentication endpoints:** 5 requests per minute
-- **Post creation:** 10 posts per minute
-- **Other endpoints:** 60 requests per minute
-
-Rate limit headers:
-```
-X-RateLimit-Limit: 60
-X-RateLimit-Remaining: 59
-X-RateLimit-Reset: 1640095200
-```
-
----
-
 ## Notification Types
 
 Available notification types:
@@ -1408,91 +1254,6 @@ Available report reasons:
 - `hate_speech` - Hate speech or symbols
 - `misinformation` - False information
 - `other` - Other reasons
-
----
-
-## Pagination
-
-List endpoints support pagination with the following parameters: 
-
-**Query Parameters:**
-- `page` (integer, default: 1): Page number
-- `per_page` (integer, default: 20, max: 100): Items per page
-
-**Response Format:**
-```json
-{
-  "data": [... ],
-  "pagination": {
-    "current_page": 1,
-    "total_pages":  10,
-    "total_items": 200,
-    "per_page":  20,
-    "from": 1,
-    "to": 20
-  }
-}
-```
-
----
-
-## Testing
-
-### Example using cURL
-
-```bash
-# Get CSRF Token
-curl -X GET http://localhost:8000/csrf-token
-
-# Login
-curl -X POST http://localhost:8000/login \
-  -H "Content-Type: application/json" \
-  -H "X-CSRF-TOKEN: your-csrf-token" \
-  -d '{
-    "email": "user@example.com",
-    "password": "password123"
-  }'
-
-# Create Post
-curl -X POST http://localhost:8000/posts \
-  -H "Content-Type:  application/json" \
-  -H "X-CSRF-TOKEN: your-csrf-token" \
-  -b "laravel_session=your-session-cookie" \
-  -d '{
-    "content": "My new post!"
-  }'
-```
-
-### Example using JavaScript (Fetch)
-
-```javascript
-// Login
-const response = await fetch('http://localhost:8000/login', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'X-CSRF-TOKEN': csrfToken
-  },
-  credentials: 'include',
-  body: JSON.stringify({
-    email: 'user@example.com',
-    password: 'password123'
-  })
-});
-
-const data = await response.json();
-```
-
----
-
-## Changelog
-
-### Version 1.0.0 (2025-12-21)
-- Initial API documentation
-- All core endpoints documented
-- Authentication, Posts, Comments, Follows, Messages, Notifications, Reports
-
----
 
 ## Support
 
