@@ -15,6 +15,7 @@ interface Post {
     image_url?: string;
     images?: string[];
     videos?: string[];
+    media?: Array<{ type: 'image' | 'video'; src: string }>;
     likes_count: number;
     bookmarks_count: number;
     reposts_count?: number;
@@ -120,11 +121,14 @@ const mediaPosts = computed(() => {
         const isRepost = post.type === 'repost' || post.original_post_user;
         if (isRepost) return false;
 
-        // Only include posts with images
+        // Include posts that have images, videos, or mixed media
         const hasImages =
             (post.images && post.images.length > 0) || post.image_url;
+        const hasVideos =
+            (post.videos && post.videos.length > 0) ||
+            (post.media && Array.isArray(post.media) && post.media.some((m: any) => m.type === 'video'));
 
-        return hasImages;
+        return hasImages || hasVideos;
     });
 });
 
@@ -489,21 +493,32 @@ const unfollowUser = async () => {
                     </div>
                     <div v-else class="grid grid-cols-3 gap-1 p-1">
                         <template v-for="post in mediaPosts" :key="post.id">
-                            <!-- Handle multiple images in a post -->
-                            <template v-if="post.images && post.images.length > 0">
-                                <div v-for="(image, index) in post.images" :key="`${post.id}-${index}`" @click="
-                                    router.visit(`/posts/${post.id}`)
-                                    " class="group relative aspect-square cursor-pointer overflow-hidden bg-gray-200">
-                                    <img :src="image" :alt="`Media ${index + 1}`"
-                                        class="h-full w-full object-cover transition group-hover:opacity-90" />
+                            <!-- Prefer unified post.media array if available (supports mixed image/video) -->
+                            <template v-if="post.media && post.media.length > 0">
+                                <div v-for="(item, index) in post.media" :key="`${post.id}-${index}`" @click="router.visit(`/posts/${post.id}`)" class="group relative aspect-square cursor-pointer overflow-hidden bg-gray-200">
+                                    <img v-if="item.type === 'image'" :src="item.src" :alt="`Media ${index + 1}`" class="h-full w-full object-cover transition group-hover:opacity-90" />
+                                    <video v-else-if="item.type === 'video'" :src="item.src" class="h-full w-full object-cover transition group-hover:opacity-90" muted playsinline preload="metadata"></video>
                                 </div>
                             </template>
-                            <!-- Handle single image_url -->
-                            <div v-else-if="post.image_url" @click="router.visit(`/posts/${post.id}`)"
-                                class="group relative aspect-square cursor-pointer overflow-hidden bg-gray-200">
-                                <img :src="post.image_url" alt="Media"
-                                    class="h-full w-full object-cover transition group-hover:opacity-90" />
+
+                            <!-- Fallback: multiple images in a post -->
+                            <template v-else-if="post.images && post.images.length > 0">
+                                <div v-for="(image, index) in post.images" :key="`${post.id}-${index}`" @click="router.visit(`/posts/${post.id}`)" class="group relative aspect-square cursor-pointer overflow-hidden bg-gray-200">
+                                    <img :src="image" :alt="`Media ${index + 1}`" class="h-full w-full object-cover transition group-hover:opacity-90" />
+                                </div>
+                            </template>
+
+                            <!-- Fallback: single image_url -->
+                            <div v-else-if="post.image_url" @click="router.visit(`/posts/${post.id}`)" class="group relative aspect-square cursor-pointer overflow-hidden bg-gray-200">
+                                <img :src="post.image_url" alt="Media" class="h-full w-full object-cover transition group-hover:opacity-90" />
                             </div>
+
+                            <!-- Fallback: videos array (legacy) -->
+                            <template v-else-if="post.videos && post.videos.length > 0">
+                                <div v-for="(video, index) in post.videos" :key="`${post.id}-v-${index}`" @click="router.visit(`/posts/${post.id}`)" class="group relative aspect-square cursor-pointer overflow-hidden bg-gray-200">
+                                    <video :src="video" class="h-full w-full object-cover transition group-hover:opacity-90" muted playsinline preload="metadata"></video>
+                                </div>
+                            </template>
                         </template>
                     </div>
                 </div>

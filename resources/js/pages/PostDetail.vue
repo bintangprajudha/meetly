@@ -15,6 +15,7 @@ const props = defineProps<{
         image_url?: string;
         images?: string[];
         videos?: string[];
+        media?: Array<{ type: 'image' | 'video'; src: string }>;
         likes_count: number;
         bookmarks_count: number;
         reposts_count?: number;
@@ -398,28 +399,76 @@ const getUserUsername = (user: any) => {
                             </p>
                         </div>
 
-                        <!-- Images -->
-                        <div v-if="post.images && post.images.length > 0" class="mt-3">
-                            <div v-if="post.images.length === 1"
-                                class="overflow-hidden rounded-2xl border border-gray-200">
-                                <img :src="post.images[0]" :alt="`Image 1`" class="w-full object-cover" />
+                        <!-- Media (images/videos/mixed) -->
+                        <div v-if="(post.media && post.media.length > 0) || (post.images && post.images.length > 0) || post.image_url || (post.videos && post.videos.length > 0)" class="mt-3">
+                            <!-- Unified media array (preferred) -->
+                            <div v-if="post.media && post.media.length > 0">
+                                <div v-if="post.media.length === 1" class="overflow-hidden rounded-2xl border border-gray-200">
+                                    <template v-if="post.media[0].type === 'image'">
+                                        <img :src="post.media[0].src" alt="Media 1" class="w-full object-cover" />
+                                    </template>
+                                    <template v-else-if="post.media[0].type === 'video'">
+                                        <video :src="post.media[0].src" controls class="w-full object-cover"></video>
+                                    </template>
+                                </div>
+
+                                <div v-else-if="post.media.length === 2" class="grid grid-cols-2 gap-0.5 overflow-hidden rounded-2xl border border-gray-200">
+                                    <div v-for="(m, idx) in post.media" :key="idx" class="h-full w-full">
+                                        <img v-if="m.type === 'image'" :src="m.src" :alt="`Media ${idx + 1}`" class="h-full w-full object-cover" />
+                                        <video v-else-if="m.type === 'video'" :src="m.src" controls class="h-full w-full object-cover"></video>
+                                    </div>
+                                </div>
+
+                                <div v-else-if="post.media.length === 3" class="grid grid-cols-2 gap-0.5 overflow-hidden rounded-2xl border border-gray-200">
+                                    <div class="row-span-2 h-full w-full">
+                                        <img v-if="post.media[0].type === 'image'" :src="post.media[0].src" alt="Media 1" class="row-span-2 h-full w-full object-cover" />
+                                        <video v-else-if="post.media[0].type === 'video'" :src="post.media[0].src" controls class="row-span-2 h-full w-full object-cover"></video>
+                                    </div>
+                                    <div v-for="(m, idx) in post.media.slice(1,3)" :key="idx">
+                                        <img v-if="m.type === 'image'" :src="m.src" :alt="`Media ${idx + 2}`" class="h-full w-full object-cover" />
+                                        <video v-else-if="m.type === 'video'" :src="m.src" controls class="h-full w-full object-cover"></video>
+                                    </div>
+                                </div>
+
+                                <div v-else class="grid grid-cols-2 gap-0.5 overflow-hidden rounded-2xl border border-gray-200">
+                                    <div v-for="(m, idx) in post.media.slice(0,4)" :key="idx">
+                                        <img v-if="m.type === 'image'" :src="m.src" :alt="`Media ${idx + 1}`" class="h-full w-full object-cover" />
+                                        <video v-else-if="m.type === 'video'" :src="m.src" controls class="h-full w-full object-cover"></video>
+                                    </div>
+                                </div>
                             </div>
-                            <div v-else-if="post.images.length === 2"
-                                class="grid grid-cols-2 gap-0.5 overflow-hidden rounded-2xl border border-gray-200">
-                                <img v-for="(img, idx) in post.images" :key="idx" :src="img" :alt="`Image ${idx + 1}`"
-                                    class="h-full w-full object-cover" />
+
+                            <!-- Fallback: legacy images -->
+                            <div v-else-if="post.images && post.images.length > 0">
+                                <div v-if="post.images.length === 1" class="overflow-hidden rounded-2xl border border-gray-200">
+                                    <img :src="post.images[0]" :alt="`Image 1`" class="w-full object-cover" />
+                                </div>
+                                <div v-else-if="post.images.length === 2" class="grid grid-cols-2 gap-0.5 overflow-hidden rounded-2xl border border-gray-200">
+                                    <img v-for="(img, idx) in post.images" :key="idx" :src="img" :alt="`Image ${idx + 1}`" class="h-full w-full object-cover" />
+                                </div>
+                                <div v-else-if="post.images.length === 3" class="grid grid-cols-2 gap-0.5 overflow-hidden rounded-2xl border border-gray-200">
+                                    <img :src="post.images[0]" alt="Image 1" class="row-span-2 h-full w-full object-cover" />
+                                    <img :src="post.images[1]" alt="Image 2" class="h-full w-full object-cover" />
+                                    <img :src="post.images[2]" alt="Image 3" class="h-full w-full object-cover" />
+                                </div>
+                                <div v-else class="grid grid-cols-2 gap-0.5 overflow-hidden rounded-2xl border border-gray-200">
+                                    <img v-for="(img, idx) in post.images.slice(0, 4)" :key="idx" :src="img" :alt="`Image ${idx + 1}`" class="h-full w-full object-cover" />
+                                </div>
                             </div>
-                            <div v-else-if="post.images.length === 3"
-                                class="grid grid-cols-2 gap-0.5 overflow-hidden rounded-2xl border border-gray-200">
-                                <img :src="post.images[0]" alt="Image 1"
-                                    class="row-span-2 h-full w-full object-cover" />
-                                <img :src="post.images[1]" alt="Image 2" class="h-full w-full object-cover" />
-                                <img :src="post.images[2]" alt="Image 3" class="h-full w-full object-cover" />
+
+                            <!-- Fallback: single image_url -->
+                            <div v-else-if="post.image_url" class="overflow-hidden rounded-2xl border border-gray-200">
+                                <img :src="post.image_url" alt="Image" class="w-full object-cover" />
                             </div>
-                            <div v-else
-                                class="grid grid-cols-2 gap-0.5 overflow-hidden rounded-2xl border border-gray-200">
-                                <img v-for="(img, idx) in post.images.slice(0, 4)" :key="idx" :src="img"
-                                    :alt="`Image ${idx + 1}`" class="h-full w-full object-cover" />
+
+                            <!-- Fallback: videos array (legacy) -->
+                            <div v-else-if="post.videos && post.videos.length > 0">
+                                <div v-if="post.videos.length === 1" class="overflow-hidden rounded-2xl border border-gray-200">
+                                    <video :src="post.videos[0]" controls class="w-full object-cover"></video>
+                                </div>
+                                <div v-else class="grid grid-cols-2 gap-0.5 overflow-hidden rounded-2xl border border-gray-200">
+                                    <video v-for="(v, idx) in post.videos.slice(0,4)" :key="idx" :src="v" controls class="h-full w-full object-cover"></video>
+                                </div>
                             </div>
                         </div>
 
