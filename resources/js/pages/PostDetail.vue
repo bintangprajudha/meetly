@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import CommentModal from '@/components/CommentModal.vue';
+import ShareModal from '@/components/ShareModal.vue';
 import AppSidebarLayout from '@/layouts/app/AppSidebarLayout.vue';
 import { Link, router } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
@@ -53,6 +54,8 @@ const props = defineProps<{
 
 const comments = ref(props.post.comments || []);
 const showCommentModal = ref(false);
+const showShareModal = ref(false);
+const showShareSuccess = ref(false);
 const showDropdown = ref(false);
 
 const isOwnPost = computed(() => {
@@ -185,6 +188,25 @@ const handleDeletePost = () => {
 
 const toggleDropdown = () => {
     showDropdown.value = !showDropdown.value;
+};
+
+const openShareModal = () => {
+    showShareModal.value = true;
+};
+
+const closeShareModal = () => {
+    showShareModal.value = false;
+};
+
+const handlePostShared = () => {
+    console.log('Post shared successfully');
+    closeShareModal();
+
+    showShareSuccess.value = true;
+
+    setTimeout(() => {
+        showShareSuccess.value = false;
+    }, 3000);
 };
 </script>
 
@@ -457,15 +479,15 @@ const toggleDropdown = () => {
                             :class="[
                                 'group flex items-center space-x-2 rounded-full p-2 transition-colors',
                                 post.bookmarked
-                                    ? 'text-blue-500'
-                                    : 'hover:bg-blue-50',
+                                    ? 'text-yellow-500'
+                                    : 'text-gray-500 hover:text-yellow-500',
                             ]"
                         >
                             <svg
-                                class="h-5 w-5 group-hover:text-blue-500"
+                                class="h-5 w-5 group-hover:text-yellow-500"
                                 :class="
                                     post.bookmarked
-                                        ? 'fill-current text-blue-500'
+                                        ? 'fill-current text-yellow-500'
                                         : 'text-gray-500'
                                 "
                                 :fill="post.bookmarked ? 'currentColor' : 'none'"
@@ -481,6 +503,7 @@ const toggleDropdown = () => {
                             </svg>
                         </button>
                         <button
+                            @click="openShareModal"
                             class="group flex items-center space-x-2 rounded-full p-2 transition-colors hover:bg-blue-50"
                         >
                             <svg
