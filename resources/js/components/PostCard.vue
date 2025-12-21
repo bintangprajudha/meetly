@@ -102,11 +102,11 @@ const previewMedia = ref<Array<{ type: 'image' | 'video'; src: string }>>([]);
 
 // local reactive UI state for likes - initialized once, managed locally
 const liked = ref<boolean>(props.post.liked ?? false);
-const likes = ref<number>(props.post.likes_count ?? 0);
+const likes = ref<number>(Number(props.post.likes_count ?? 0));
 const bookmarked = ref<boolean>(props.post.bookmarked ?? false);
-const bookmarks = ref<number>(props.post.bookmarks_count ?? 0);
+const bookmarks = ref<number>(Number(props.post.bookmarks_count ?? 0));
 const reposted = ref<boolean>(props.post.reposted ?? false);
-const reposts = ref<number>(props.post.reposts_count ?? 0);
+const reposts = ref<number>(Number(props.post.reposts_count ?? 0));
 const showRepostModal = ref(false);
 const repostLoading = ref(false);
 const showShareModal = ref(false);
@@ -434,7 +434,7 @@ const handleCommented = async () => {
             if (data?.comment) {
                 comments.value.unshift(data.comment);
                 (props.post as any).comments_count =
-                    ((props.post as any).comments_count || 0) + 1;
+                    Number((props.post as any).comments_count || 0) + 1;
                 emit('commented', targetId, data.comment);
             }
         }
@@ -655,13 +655,13 @@ const openOriginalMediaPreview = (index: number) => {
                                 <template v-for="(item, index) in originalPostMediaList.slice(0, 4)"
                                     :key="`original-${item.type}-${item.src}-${index}`">
                                     <!-- Image -->
-                                    <img v-if="item.type === 'image'" :src="item.src" :alt="`Post media ${index + 1}`"
+                                    <img v-if="item.type === 'image'" :src="item.src" :alt="`Post media ${Number(index) + 1}`"
                                         :class="[
                                             'cursor-pointer rounded-lg object-cover transition-opacity hover:opacity-90',
                                             originalPostMediaList.length === 1
                                                 ? 'max-h-96 max-w-96 object-contain'
                                                 : 'h-64 w-full object-cover',
-                                        ]" @click.stop="openOriginalMediaPreview(index)"
+                                        ]" @click.stop="openOriginalMediaPreview(Number(index))"
                                         @error="(e: Event) => ((e.target as HTMLImageElement).style.display = 'none')" />
 
                                     <!-- Video -->
@@ -730,13 +730,13 @@ const openOriginalMediaPreview = (index: number) => {
                                 0,
                                 4,
                             )" :key="item.type + '-' + item.src + '-' + index">
-                                <img v-if="item.type === 'image'" :src="item.src" :alt="`Media ${index + 1}`" :class="[
+                                <img v-if="item.type === 'image'" :src="item.src" :alt="`Media ${Number(index) + 1}`" :class="[
                                     'w-full cursor-pointer object-cover transition-opacity hover:opacity-95',
                                     previewMediaList.length === 1
                                         ? 'max-h-[500px]'
                                         : 'h-[280px]',
                                 ]" @click.stop="
-                                    openMediaPreview(index, 'image')
+                                    openMediaPreview(Number(index), 'image')
                                     " />
 
                                 <div v-else :class="[
@@ -745,7 +745,7 @@ const openOriginalMediaPreview = (index: number) => {
                                         ? 'max-h-[500px]'
                                         : 'h-[280px]',
                                 ]" @click.stop="
-                                    openMediaPreview(index, 'video')
+                                    openMediaPreview(Number(index), 'video')
                                     ">
                                     <video :src="item.src" preload="metadata" muted playsinline
                                         class="h-full w-full object-cover"></video>

@@ -7,6 +7,7 @@ import AppSidebarLayout from '@/layouts/app/AppSidebarLayout.vue';
 interface User {
     id: number;
     name: string;
+    username?: string | null;
     email: string;
     avatar: string | null;
     bio?: string;
@@ -81,6 +82,30 @@ const getAvatarColor = (name: string): string => {
 
     return colors[hash % colors.length];
 };
+
+// Get username (prefer stored username, fall back to name-derived identifier)
+const getUserUsername = (user: User | null | undefined): string => {
+    if (!user) return '';
+    return (user.username && String(user.username)) || user.name.toLowerCase().replace(/\s+/g, '');
+};
+
+// Build public profile URL for a given user (always uses /@username)
+const getUserProfileUrl = (user: User | null | undefined): string => {
+    const username = getUserUsername(user as User);
+    return `/@${username}`;
+};
+
+// Resolve avatar URL (supports absolute URLs and storage paths). Adds cache-busting query so updated avatars show immediately
+const getAvatarUrl = (avatar: string | null) => {
+    if (!avatar) return null;
+    const base = avatar.startsWith('http') ? avatar : `/storage/${avatar}`;
+    return `${base}${base.includes('?') ? '&' : '?'}t=${Date.now()}`;
+};
+
+// On avatar load error, clear avatar so initials fallback displays
+const handleAvatarError = (user: User) => {
+    user.avatar = null;
+};
 </script>
 
 <template>
@@ -92,7 +117,7 @@ const getAvatarColor = (name: string): string => {
                     <div class="px-4 py-3">
                         <div class="flex items-center gap-4">
                             <!-- Back Button -->
-                            <Link :href="`/@${user.name}`" class="p-2 -ml-2 rounded-full hover:bg-gray-100 transition-colors">
+                            <Link :href="getUserProfileUrl(user)" class="p-2 -ml-2 rounded-full hover:bg-gray-100 transition-colors">
                                  <svg
                                 class="h-5 w-5 text-black"
                                 fill="currentColor"
@@ -109,8 +134,8 @@ const getAvatarColor = (name: string): string => {
                             <!-- User Info -->
                             <div>
                                 <h1 class="text-xl font-bold text-gray-900">{{ user.name }}</h1>
-                                <p class="text-sm text-gray-500">@{{ user.name }}</p>
-                            </div>
+                                <p class="text-sm text-gray-500">@{{ getUserUsername(user) }}</p>
+                            </div> 
                         </div>
                     </div>
 
@@ -145,8 +170,8 @@ const getAvatarColor = (name: string): string => {
                         <div class="flex items-start gap-3">
                             <!-- Avatar -->
                             <Link :href="`/${targetUser.name}`" class="flex-shrink-0">
-                                <div v-if="targetUser.avatar" class="w-12 h-12 rounded-full overflow-hidden">
-                                    <img :src="targetUser.avatar" :alt="targetUser.name" class="w-full h-full object-cover">
+                                <div v-if="getAvatarUrl(targetUser.avatar)" class="w-12 h-12 rounded-full overflow-hidden">
+                                    <img :src="getAvatarUrl(targetUser.avatar)!" :alt="targetUser.name" @error="handleAvatarError(targetUser)" class="w-full h-full object-cover">
                                 </div>
                                 <div v-else
                                     class="w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold text-sm"
@@ -159,11 +184,11 @@ const getAvatarColor = (name: string): string => {
                             <div class="flex-1 min-w-0">
                                 <div class="flex items-start justify-between gap-2">
                                     <div class="flex-1 min-w-0">
-                                        <Link :href="`/${targetUser.name}`" class="block">
+                                        <Link :href="getUserProfileUrl(targetUser)" class="block">
                                             <h3 class="font-bold text-gray-900 hover:underline truncate">
                                                 {{ targetUser.name }}
                                             </h3>
-                                            <p class="text-gray-500 text-sm truncate">@{{ targetUser.name }}</p>
+                                            <p class="text-gray-500 text-sm truncate">@{{ getUserUsername(targetUser) }}</p>
                                         </Link>
 
                                         <!-- Bio -->
