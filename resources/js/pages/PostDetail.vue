@@ -71,13 +71,11 @@ const showDropdown = ref(false);
 const showRepostModal = ref(false);
 const showShareModal = ref(false);
 const showShareSuccess = ref(false);
-const repostLoading = ref(false);
 
 const liked = ref<boolean>(props.post.liked ?? false);
 const likes = ref<number>(props.post.likes_count ?? 0);
 const bookmarked = ref<boolean>(props.post.bookmarked ?? false);
 const bookmarks = ref<number>(props.post.bookmarks_count ?? 0);
-const reposted = ref<boolean>(props.post.reposted ?? false);
 const reposts = ref<number>(props.post.reposts_count ?? 0);
 
 const toggleLike = async (event: Event) => {
