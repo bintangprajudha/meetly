@@ -83,6 +83,15 @@ const deleteUser = (userId: number) => {
     processing.value = true;
     router.delete(`/admin/users/${userId}`, {
         preserveScroll: true,
+        onSuccess: () => {
+            alert('User deleted successfully!');
+        },
+        onError: (errors) => {
+            console.error('Delete user error:', errors);
+            alert(
+                'Failed to delete user. You may not have permission or the user cannot be deleted.',
+            );
+        },
         onFinish: () => (processing.value = false),
     });
 };
