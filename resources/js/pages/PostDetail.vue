@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import CommentModal from '@/components/CommentModal.vue';
+import RepostModal from '@/components/RepostModal.vue';
+import ShareModal from '@/components/ShareModal.vue';
 import AppHeaderLayout from '@/layouts/app/AppHeaderLayout.vue';
 import AppSidebarLayout from '@/layouts/app/AppSidebarLayout.vue';
 import { Link, router } from '@inertiajs/vue3';
@@ -64,6 +66,122 @@ const props = defineProps<{
 const comments = ref(props.post.comments || []);
 const showCommentModal = ref(false);
 const showDropdown = ref(false);
+
+// Modals and local UI state (likes, bookmarks, repost/share)
+const showRepostModal = ref(false);
+const showShareModal = ref(false);
+const showShareSuccess = ref(false);
+const repostLoading = ref(false);
+
+const liked = ref<boolean>(props.post.liked ?? false);
+const likes = ref<number>(props.post.likes_count ?? 0);
+const bookmarked = ref<boolean>(props.post.bookmarked ?? false);
+const bookmarks = ref<number>(props.post.bookmarks_count ?? 0);
+const reposted = ref<boolean>(props.post.reposted ?? false);
+const reposts = ref<number>(props.post.reposts_count ?? 0);
+
+const toggleLike = async (event: Event) => {
+    event.stopPropagation();
+    event.preventDefault();
+
+    const prevLiked = liked.value;
+    const prevLikes = likes.value;
+
+    liked.value = !prevLiked;
+    likes.value += liked.value ? 1 : -1;
+    if (likes.value < 0) likes.value = 0;
+
+    try {
+        const targetId =
+            props.post.type === 'repost' && props.post.post_id
+                ? props.post.post_id
+                : props.post.id;
+
+        const response = await window.axios.post(`/posts/${targetId}/like`);
+
+        if (response.data.likes_count !== undefined) {
+            likes.value = response.data.likes_count;
+        }
+        if (response.data.liked !== undefined) {
+            liked.value = response.data.liked;
+        }
+    } catch (err: any) {
+        liked.value = prevLiked;
+        likes.value = prevLikes;
+        console.error('❌ Error toggling like:', err.response?.data || err.message);
+        alert('Failed to toggle like. Please try again.');
+    }
+};
+
+const toggleBookmark = async (event: Event) => {
+    event.stopPropagation();
+    event.preventDefault();
+
+    const prevBookmarked = bookmarked.value;
+    const prevBookmarks = bookmarks.value;
+
+    bookmarked.value = !prevBookmarked;
+    bookmarks.value += bookmarked.value ? 1 : -1;
+    if (bookmarks.value < 0) bookmarks.value = 0;
+
+    try {
+        const targetId =
+            props.post.type === 'repost' && props.post.post_id
+                ? props.post.post_id
+                : props.post.id;
+
+        const response = await window.axios.post(`/posts/${targetId}/bookmark`);
+
+        if (response.data.bookmarked !== undefined) {
+            bookmarked.value = response.data.bookmarked;
+        }
+        if (response.data.bookmarks_count !== undefined) {
+            bookmarks.value = response.data.bookmarks_count;
+        }
+    } catch (err: any) {
+        bookmarked.value = prevBookmarked;
+        bookmarks.value = prevBookmarks;
+        console.error('❌ Error toggling bookmark:', err.response?.data || err.message);
+        alert('Failed to toggle bookmark. Please try again.');
+    }
+};
+
+const openRepostModal = (event?: Event) => {
+    if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+    }
+    showRepostModal.value = true;
+};
+
+const closeRepostModal = () => {
+    showRepostModal.value = false;
+};
+
+const handleRepostSubmitted = async () => {
+    await router.visit(window.location.href, {
+        method: 'get',
+        preserveState: false,
+    });
+};
+
+const openShareModal = (event?: Event) => {
+    if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+    }
+    showShareModal.value = true;
+};
+
+const closeShareModal = () => {
+    showShareModal.value = false;
+};
+
+const handlePostShared = () => {
+    closeShareModal();
+    showShareSuccess.value = true;
+    setTimeout(() => (showShareSuccess.value = false), 3000);
+};
 
 const isOwnPost = computed(() => {
     return props.post.user.id === props.user.id;
@@ -315,21 +433,15 @@ const getUserUsername = (user: any) => {
                         <!-- Stats -->
                         <div class="mt-4 flex items-center space-x-5 border-y border-gray-200 py-3 text-sm">
                             <div class="flex items-center space-x-1">
-                                <span class="font-bold text-gray-900">{{
-                                    post.reposts_count || 0
-                                    }}</span>
+                                <span class="font-bold text-gray-900">{{ reposts || 0 }}</span>
                                 <span class="text-gray-500">Reposts</span>
                             </div>
                             <div class="flex items-center space-x-1">
-                                <span class="font-bold text-gray-900">{{
-                                    post.likes_count || 0
-                                    }}</span>
+                                <span class="font-bold text-gray-900">{{ likes || 0 }}</span>
                                 <span class="text-gray-500">Likes</span>
                             </div>
                             <div class="flex items-center space-x-1">
-                                <span class="font-bold text-gray-900">{{
-                                    post.bookmarks_count || 0
-                                    }}</span>
+                                <span class="font-bold text-gray-900">{{ bookmarks || 0 }}</span>
                                 <span class="text-gray-500">Bookmarks</span>
                             </div>
                         </div>
@@ -344,7 +456,7 @@ const getUserUsername = (user: any) => {
                                         d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                                 </svg>
                             </button>
-                            <button
+                            <button @click="openRepostModal"
                                 class="group flex items-center space-x-2 rounded-full p-2 transition-colors hover:bg-green-50">
                                 <svg class="h-5 w-5 text-gray-500 group-hover:text-green-500" fill="none"
                                     stroke="currentColor" viewBox="0 0 24 24">
@@ -352,37 +464,37 @@ const getUserUsername = (user: any) => {
                                         d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                                 </svg>
                             </button>
-                            <button :class="[
+                            <button @click="toggleLike" :class="[
                                 'group flex items-center space-x-2 rounded-full p-2 transition-colors',
-                                post.liked
+                                liked
                                     ? 'text-red-500'
                                     : 'hover:bg-red-50',
                             ]">
-                                <svg class="h-5 w-5 group-hover:text-red-500" :class="post.liked
+                                <svg class="h-5 w-5 group-hover:text-red-500" :class="liked
                                     ? 'fill-current text-red-500'
                                     : 'text-gray-500'
-                                    " :fill="post.liked ? 'currentColor' : 'none'" stroke="currentColor"
+                                    " :fill="liked ? 'currentColor' : 'none'" stroke="currentColor"
                                     viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                         d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                                 </svg>
                             </button>
-                            <button :class="[
+                            <button @click="toggleBookmark" :class="[
                                 'group flex items-center space-x-2 rounded-full p-2 transition-colors',
-                                post.bookmarked
+                                bookmarked
                                     ? 'text-blue-500'
                                     : 'hover:bg-blue-50',
                             ]">
-                                <svg class="h-5 w-5 group-hover:text-blue-500" :class="post.bookmarked
+                                <svg class="h-5 w-5 group-hover:text-blue-500" :class="bookmarked
                                     ? 'fill-current text-blue-500'
                                     : 'text-gray-500'
-                                    " :fill="post.bookmarked ? 'currentColor' : 'none'" stroke="currentColor"
+                                    " :fill="bookmarked ? 'currentColor' : 'none'" stroke="currentColor"
                                     viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                         d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
                                 </svg>
                             </button>
-                            <button
+                            <button @click="openShareModal"
                                 class="group flex items-center space-x-2 rounded-full p-2 transition-colors hover:bg-blue-50">
                                 <svg class="h-5 w-5 text-gray-500 group-hover:text-blue-500" fill="none"
                                     stroke="currentColor" viewBox="0 0 24 24">
@@ -458,6 +570,38 @@ const getUserUsername = (user: any) => {
                         ? props.post.post_id
                         : props.post.id
                         " :user="props.user" @close="closeCommentModal" @commented="handleCommented" />
+
+                    <!-- Repost Modal -->
+                    <RepostModal v-if="showRepostModal" :post="props.post" :target-post-id="props.post.type === 'repost' && props.post.post_id
+                        ? props.post.post_id
+                        : props.post.id
+                        " @close="closeRepostModal" @submitted="handleRepostSubmitted" />
+
+                    <!-- Share Modal -->
+                    <ShareModal :is-open="showShareModal" :post="props.post" @close="closeShareModal" @shared="handlePostShared" />
+
+                    <!-- Share Success Toast -->
+                    <Teleport to="body">
+                        <Transition enter-active-class="transition-all duration-300 ease-out" enter-from-class="opacity-0 translate-y-2"
+                            enter-to-class="opacity-100 translate-y-0" leave-active-class="transition-all duration-200 ease-in"
+                            leave-from-class="opacity-100 translate-y-0" leave-to-class="opacity-0 translate-y-2">
+                            <div v-if="showShareSuccess" class="pointer-events-none fixed top-20 left-1/2 z-[110] -translate-x-1/2">
+                                <div class="pointer-events-auto overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-2xl">
+                                    <div class="flex items-center gap-4 px-6 py-4">
+                                        <div class="flex-shrink-0">
+                                            <svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                            </svg>
+                                        </div>
+                                        <div class="flex-1">
+                                            <p class="text-sm font-medium text-gray-900">Link copied to clipboard</p>
+                                        </div>
+                                        <button @click="showShareSuccess = false" class="text-gray-400 hover:text-gray-600">Close</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </Transition>
+                    </Teleport>
                 </div>
             </main>
             <!-- Delete Confirmation Modal -->
