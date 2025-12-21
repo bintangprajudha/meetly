@@ -21,6 +21,7 @@
 - Mengikuti pengguna lain (follow/unfollow)
 - Mengirim pesan langsung (real-time messaging)
 - Menerima notifikasi real-time
+- Menjelajahi pengguna melalui fitur explore untuk menemukan pengguna lain
 
 ---
 
