@@ -85,7 +85,7 @@ const getAvatarColor = (name: string): string => {
 
 <template>
     <AppSidebarLayout>
-        <main class="min-h-screen bg-white">
+        <main class="min-h-screen bg-white lg:ml-16">
             <div class="mx-auto max-w-2xl">
                 <!-- Header -->
                 <div class="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-gray-200">

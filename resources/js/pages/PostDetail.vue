@@ -323,7 +323,7 @@ const getUserUsername = (user: any) => {
 <template>
     <AppSidebarLayout>
         <Navbar />
-            <main class="min-h-screen bg-gray-50">
+        <main class="min-h-screen bg-gray-50 lg:ml-16">
                 <div class="mx-auto max-w-2xl bg-white border-x border-gray-200">
                     <!-- Header with back button -->
                     <div
@@ -480,11 +480,11 @@ const getUserUsername = (user: any) => {
                             <button @click="toggleBookmark" :class="[
                                 'group flex items-center space-x-2 rounded-full p-2 transition-colors',
                                 bookmarked
-                                    ? 'text-blue-500'
-                                    : 'hover:bg-blue-50',
+                                    ? 'text-yellow-500'
+                                    : 'hover:bg-yellow-50',
                             ]">
-                                <svg class="h-5 w-5 group-hover:text-blue-500" :class="bookmarked
-                                    ? 'fill-current text-blue-500'
+                                <svg class="h-5 w-5 group-hover:text-yellow-500" :class="bookmarked
+                                    ? 'fill-current text-yellow-500'
                                     : 'text-gray-500'
                                     " :fill="bookmarked ? 'currentColor' : 'none'" stroke="currentColor"
                                     viewBox="0 0 24 24">

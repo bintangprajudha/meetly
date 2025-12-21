@@ -835,27 +835,31 @@ const openOriginalMediaPreview = (index: number) => {
 
                     <!-- Bookmark -->
                     <button @click="toggleBookmark" :class="[
-                        'group rounded-full p-2 transition-colors',
+                        'group flex items-center gap-2 transition-colors',
                         bookmarked
-                            ? 'text-blue-500'
-                            : 'text-gray-500 hover:text-blue-500',
+                            ? 'text-yellow-500'
+                            : 'text-gray-500 hover:text-yellow-500',
                     ]">
-                        <div class="rounded-full p-0 transition-colors group-hover:bg-blue-50">
+                        <div class="rounded-full p-2 transition-colors group-hover:bg-yellow-50">
                             <svg class="h-[18px] w-[18px]" :fill="bookmarked ? 'currentColor' : 'none'"
                                 stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
                             </svg>
                         </div>
+                        <span v-if="bookmarks > 0" class="text-[13px]">{{
+                            bookmarks
+                            }}</span>
                     </button>
 
                     <!-- Share -->
                     <button @click="openShareModal"
                         class="group rounded-full p-2 text-gray-500 transition-colors hover:text-blue-500">
                         <div class="rounded-full p-0 transition-colors group-hover:bg-blue-50">
-                            <svg class="h-[18px] w-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                            <svg class="h-5 w-5 text-gray-500 group-hover:text-blue-500" fill="none"
+                                    stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
                             </svg>
                         </div>
                     </button>
