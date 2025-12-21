@@ -2,10 +2,10 @@
 import CommentModal from '@/components/CommentModal.vue';
 import RepostModal from '@/components/RepostModal.vue';
 import ShareModal from '@/components/ShareModal.vue';
-import AppHeaderLayout from '@/layouts/app/AppHeaderLayout.vue';
 import AppSidebarLayout from '@/layouts/app/AppSidebarLayout.vue';
 import { Link, router } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
+import Navbar from '@/layouts/app/Navbar.vue';
 
 const props = defineProps<{
     post: {
@@ -322,7 +322,7 @@ const getUserUsername = (user: any) => {
 
 <template>
     <AppSidebarLayout>
-        <AppHeaderLayout>
+        <Navbar />
             <main class="min-h-screen bg-gray-50">
                 <div class="mx-auto max-w-2xl bg-white border-x border-gray-200">
                     <!-- Header with back button -->
@@ -638,6 +638,5 @@ const getUserUsername = (user: any) => {
                     </div>
                 </Transition>
             </Teleport>
-        </AppHeaderLayout>
     </AppSidebarLayout>
 </template>

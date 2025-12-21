@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 import { Head, router, usePage } from '@inertiajs/vue3';
-import AppHeaderLayout from '@/layouts/app/AppHeaderLayout.vue';
 import AppSidebarLayout from '@/layouts/app/AppSidebarLayout.vue';
 import PostModal from '@/components/PostModal.vue';
+import Navbar from '@/layouts/app/Navbar.vue';
 
 // Define types
 interface User {
@@ -149,38 +149,9 @@ const formatCount = (count: number): string => {
 
 <template>
     <Head />
-
+    <Navbar />
     <AppSidebarLayout @open-post="openPostModal">
-        <AppHeaderLayout>
             <main class="mx-auto min-h-screen max-w-2xl bg-white">
-                <!-- Top Bar -->
-                <div
-                    class="sticky top-0 z-10 border-b border-gray-200 bg-white/95 backdrop-blur-sm">
-                    <div class="flex items-center space-x-4 px-4 py-3">
-                        <button
-                            @click="router.visit('/dashboard')"
-                            class="-ml-2 rounded-full p-2 transition hover:bg-gray-100">
-                            <svg
-                                class="h-5 w-5 text-black"
-                                fill="currentColor"
-                                viewBox="0 0 20 20">
-                                <path
-                                    fill-rule="evenodd"
-                                    d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z"
-                                    clip-rule="evenodd" />
-                            </svg>
-                        </button>
-                        <div>
-                            <h1 class="text-xl font-bold text-gray-900">
-                                Explore
-                            </h1>
-                            <p class="text-[13px] text-gray-500">
-                                Discover people to follow
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- Search Bar -->
                 <div
                     class="sticky top-[57px] z-10 border-b border-gray-200 bg-white p-4">
@@ -406,7 +377,6 @@ const formatCount = (count: number): string => {
                 :user="authUser as any"
                 @close="showPostModal = false"
                 @posted="handlePostCreated" />
-        </AppHeaderLayout>
     </AppSidebarLayout>
 </template>
 

@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
-import AppHeaderLayout from '@/layouts/app/AppHeaderLayout.vue';
 import AppSidebarLayout from '@/layouts/app/AppSidebarLayout.vue';
 import axios from 'axios';
+import Navbar from '@/layouts/app/Navbar.vue';
 
 // Types
 interface Actor {
@@ -205,19 +205,12 @@ const getAvatarUrl = (avatar: string | null): string | null => {
 
 <template>
     <AppSidebarLayout>
-        <AppHeaderLayout>
+        <Navbar />
         <main class="min-h-screen bg-gray-50 md:flex md:items-center md:justify-center">
             <div class="h-screen flex flex-col max-w-2xl w-full md:border-x md:border-gray-200 bg-white">
                 <!-- Header -->
                 <div class="bg-white border-b border-gray-200 px-4 sm:px-6 md:px-8 py-3 sm:py-4 w-full sticky top-0 z-10">
                     <div class="flex items-center justify-between">
-                        <div class="flex items-center gap-2 sm:gap-3">
-                            <h1 class="text-xl sm:text-2xl font-bold text-gray-900">Notifications</h1>
-                            <span v-if="unreadCount > 0"
-                                class="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                                {{ unreadCount }}
-                            </span>
-                        </div>
 
                         <button v-if="unreadCount > 0" @click="markAllAsRead"
                             class="text-xs sm:text-sm text-blue-600 font-medium hover:text-blue-700 transition-colors">
@@ -337,6 +330,5 @@ const getAvatarUrl = (avatar: string | null): string | null => {
                 </div>
             </div>
         </main>
-        </AppHeaderLayout>
     </AppSidebarLayout>
 </template>
