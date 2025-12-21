@@ -33,18 +33,37 @@ class AdminUserController extends Controller
      */
     public function destroy(User $user)
     {
-        // Gunakan policy untuk cek otorisasi
-        $this->authorize('delete', $user);
+        try {
+            // Gunakan policy untuk cek otorisasi
+            $this->authorize('delete', $user);
 
-        $userName = $user->name;
-        $user->delete();
+            $userName = $user->name;
+            $userId = $user->id;
 
-        Log::info('User deleted by admin', [
-            'deleted_user_id' => $user->id,
-            'deleted_user_name' => $userName,
-            'admin_id' => Auth::id(),
-        ]);
+            $user->delete();
 
-        return redirect()->back()->with('success', 'User deleted successfully!');
+            Log::info('User deleted by admin', [
+                'deleted_user_id' => $userId,
+                'deleted_user_name' => $userName,
+                'admin_id' => Auth::id(),
+            ]);
+
+            return redirect()->back()->with('success', 'User deleted successfully!');
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            Log::warning('Unauthorized user deletion attempt', [
+                'target_user_id' => $user->id,
+                'admin_id' => Auth::id(),
+            ]);
+
+            return redirect()->back()->with('error', 'You are not authorized to delete this user.');
+        } catch (\Exception $e) {
+            Log::error('Error deleting user', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+                'admin_id' => Auth::id(),
+            ]);
+
+            return redirect()->back()->with('error', 'Failed to delete user: ' . $e->getMessage());
+        }
     }
 }
