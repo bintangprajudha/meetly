@@ -33,7 +33,7 @@ class PostController extends Controller
     public function index()
     {
         $userId = Auth::id();
-        $user = Auth::user();
+
         $posts   = $this->getFormattedPosts($userId);
         $reposts = $this->getFormattedReposts($userId);
 
@@ -42,13 +42,7 @@ class PostController extends Controller
             ->values();
 
         return Inertia::render('Dashboard', [
-            'user'  =>  [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'username' => $user->username,  
-                'avatar' => $user->avatar,      
-            ],
+            'user'  => Auth::user(),
             'posts' => $feed,
         ]);
     }
@@ -302,7 +296,6 @@ class PostController extends Controller
     public function show(Post $post)
     {
         $userId = Auth::id();
-        $user = Auth::user();
         $post->loadCount(['comments', 'likes', 'bookmarks', 'reposts']);
         $post->load([
             'user',
@@ -316,13 +309,7 @@ class PostController extends Controller
 
         return Inertia::render('PostDetail', [
             'post' => $post,
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'username' => $user->username,  
-                'avatar' => $user->avatar,      
-            ],
+            'user' => Auth::user(),
         ]);
     }
 
@@ -351,7 +338,7 @@ class PostController extends Controller
     public function likes()
     {
         $userId = Auth::id();
-        $user  = Auth::user();
+
         $posts = Post::whereHas('likes', fn($q) => $q->where('user_id', $userId))
             ->with('user')
             ->withCount(['likes', 'bookmarks', 'comments'])
@@ -365,13 +352,7 @@ class PostController extends Controller
             });
 
         return Inertia::render('Likes', [
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'username' => $user->username,  
-                'avatar' => $user->avatar,      
-            ],
+            'user'  => Auth::user(),
             'posts' => $posts,
         ]);
     }

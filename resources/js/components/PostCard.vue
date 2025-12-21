@@ -17,10 +17,12 @@ const props = defineProps<{
         media?: Array<{ type: 'image' | 'video'; src: string }>;
         likes_count: number;
         bookmarks_count: number;
+        shares_count: number;
         reposts_count?: number;
         created_at: string;
         liked?: boolean;
         bookmarked?: boolean;
+        shared?: boolean;
         reposted?: boolean;
         repost_id?: number;
         post_id?: number;
@@ -105,6 +107,8 @@ const liked = ref<boolean>(props.post.liked ?? false);
 const likes = ref<number>(props.post.likes_count ?? 0);
 const bookmarked = ref<boolean>(props.post.bookmarked ?? false);
 const bookmarks = ref<number>(props.post.bookmarks_count ?? 0);
+const shared = ref<boolean>(props.post.shared ?? false);
+const shares = ref<number>(props.post.shares_count ?? 0);
 const reposted = ref<boolean>(props.post.reposted ?? false);
 const reposts = ref<number>(props.post.reposts_count ?? 0);
 const showRepostModal = ref(false);
@@ -191,10 +195,16 @@ const getPreviewMedia = () => {
     }
 
     const media: Array<{ type: 'image' | 'video'; src: string }> = [];
-    getPreviewImages().forEach((src) => media.push({ type: 'image', src }));
-    (props.post.videos || []).forEach((src) =>
-        media.push({ type: 'video', src }),
-    );
+    getPreviewImages().forEach((src) => {
+        if (typeof src === 'string' && src.length > 0) {
+            media.push({ type: 'image', src });
+        }
+    });
+    (props.post.videos || []).forEach((src) => {
+        if (typeof src === 'string' && src.length > 0) {
+            media.push({ type: 'video', src });
+        }
+    });
     return media;
 };
 
@@ -300,6 +310,42 @@ const toggleBookmark = async (event: Event) => {
             err.response?.data || err.message,
         );
         alert('Failed to toggle bookmark. Please try again.');
+    }
+};
+
+const toggleShared = async (event: Event) => {
+    event.stopPropagation();
+    event.preventDefault();
+
+    const prevShared = shared.value;
+    const prevShares = shares.value;
+
+    shared.value = !prevShared;
+    shares.value += shared.value ? 1 : -1;
+    if (shares.value < 0) shares.value = 0;
+
+    try {
+        const targetId =
+            props.post.type === 'repost' && props.post.post_id
+                ? props.post.post_id
+                : props.post.id;
+
+        const response = await window.axios.post(`/posts/${targetId}/share`);
+
+        if (response.data.shared !== undefined) {
+            shared.value = response.data.shared;
+        }
+        if (response.data.shares_count !== undefined) {
+            shares.value = response.data.shares_count;
+        }
+    } catch (err: any) {
+        shared.value = prevShared;
+        shares.value = prevShares;
+        console.error(
+            '❌ Error toggling share:',
+            err.response?.data || err.message,
+        );
+        alert('Failed to toggle share. Please try again.');
     }
 };
 
@@ -504,7 +550,7 @@ const originalPostMediaList = computed(() => {
     // Cek media array terlebih dahulu
     if (Array.isArray(op.media) && op.media.length > 0) {
         op.media.forEach((m: any) => {
-            if (m && (m.type === 'image' || m.type === 'video') && m.src) {
+            if (m && (m.type === 'image' || m.type === 'video') && typeof m.src === 'string' && m.src.length > 0) {
                 media.push({ type: m.type, src: m.src });
             }
         });
@@ -658,23 +704,23 @@ const openOriginalMediaPreview = (index: number) => {
                                 'grid-cols-1': originalPostMediaList.length === 1,
                                 'grid-cols-2': originalPostMediaList.length > 1,
                             }">
-                                <template v-for="(item, index) in originalPostMediaList.slice(0, 4)"
+                            <template v-for="(item, index) in originalPostMediaList.slice(0, 4)"
                                     :key="`original-${item.type}-${item.src}-${index}`">
                                     <!-- Image -->
-                                    <img v-if="item.type === 'image'" :src="item.src" :alt="`Post media ${index + 1}`"
+                                    <img v-if="item.type === 'image'" :src="item.src" :alt="`Post media ${Number(index) + 1}`"
                                         :class="[
                                             'cursor-pointer rounded-lg object-cover transition-opacity hover:opacity-90',
                                             originalPostMediaList.length === 1
                                                 ? 'max-h-96 max-w-96 object-contain'
                                                 : 'h-64 w-full object-cover',
-                                        ]" @click.stop="openOriginalMediaPreview(index)"
+                                        ]" @click.stop="openOriginalMediaPreview(Number(index))"
                                         @error="(e: Event) => ((e.target as HTMLImageElement).style.display = 'none')" />
 
                                     <!-- Video -->
                                     <div v-else :class="[
                                         'relative cursor-pointer overflow-hidden rounded-lg bg-black',
                                         originalPostMediaList.length === 1 ? 'max-h-96' : 'h-64',
-                                    ]" @click.stop="openOriginalMediaPreview(index)">
+                                    ]" @click.stop="openOriginalMediaPreview(Number(index))">
                                         <video :src="item.src" preload="metadata" muted playsinline
                                             class="h-full w-full object-cover"></video>
                                         <div
@@ -835,29 +881,46 @@ const openOriginalMediaPreview = (index: number) => {
 
                     <!-- Bookmark -->
                     <button @click="toggleBookmark" :class="[
-                        'group rounded-full p-2 transition-colors',
+                        'group flex items-center gap-2 transition-colors',
                         bookmarked
-                            ? 'text-blue-500'
-                            : 'text-gray-500 hover:text-blue-500',
+                            ? 'text-yellow-500'
+                            : 'text-gray-500 hover:text-yellow-500',
                     ]">
-                        <div class="rounded-full p-0 transition-colors group-hover:bg-blue-50">
+                        <div class="rounded-full p-2 transition-colors group-hover:bg-yellow-50">
                             <svg class="h-[18px] w-[18px]" :fill="bookmarked ? 'currentColor' : 'none'"
                                 stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
                             </svg>
                         </div>
+                        <span v-if="bookmarks > 0" class="text-[13px]">{{
+                            bookmarks
+                        }}</span>
                     </button>
 
                     <!-- Share -->
-                    <button @click="openShareModal"
-                        class="group rounded-full p-2 text-gray-500 transition-colors hover:text-blue-500">
-                        <div class="rounded-full p-0 transition-colors group-hover:bg-blue-50">
-                            <svg class="h-[18px] w-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    <button
+                        @click="openShareModal"
+                        class="group flex items-center gap-2 transition-colors hover:bg-blue-50"
+                    >
+                        <div class="rounded-full p-2 transition-colors group-hover:bg-blue-50">
+                            <svg
+                                class="h-[18px] w-[18px] text-gray-500 group-hover:text-blue-500"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
+                                />
                             </svg>
                         </div>
+                        <span v-if="shares > 0" class="text-[13px] text-gray-500">{{
+                            shares
+                        }}</span>
                     </button>
                 </div>
             </div>

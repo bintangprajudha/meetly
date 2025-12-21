@@ -7,13 +7,12 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\FollowController;
-use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RepostController;
 use App\Http\Controllers\CommentController;
-use App\Http\Controllers\ExploreController;
 use App\Http\Controllers\MessageController;
-use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\ReportController;
+use App\Http\Controllers\AdminUserController;
 
 Route::get('/', function () {
     return Inertia::render('Home');
@@ -109,11 +108,6 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/{user:name}/followers', [UserController::class, 'followers'])->name('user.followers');
     Route::get('/{user:name}/following', [UserController::class, 'following'])->name('user.following');
     Route::get('/profile/edit', [UserController::class, 'edit'])->name('profile.edit');
-    Route::post('/profile/update', [UserController::class, 'update'])
-        ->name('profile.update')
-        ->middleware('auth');
-            
-     Route::get('/explore', [ExploreController::class, 'index'])->name('explore');
 
     // Report routes (user bisa melaporkan post)
     Route::post('/reports', [ReportController::class, 'store'])->name('reports.store');
@@ -130,6 +124,6 @@ Route::get('/users/{user}/followers', [FollowController::class, 'followers'])->n
 Route::get('/users/{user}/following', [FollowController::class, 'following'])->name('users.following');
 
 // User Profile routes (accessible by both authenticated and guest users)
-Route::get('/@{username}', [UserController::class, 'show'])
+Route::get('/{username}', [UserController::class, 'show'])
     ->name('user.profile')
     ->where('username', '[A-Za-z0-9_]+'); // Only allow alphanumeric and underscore
