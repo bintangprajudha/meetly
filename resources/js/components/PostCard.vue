@@ -523,7 +523,7 @@ const handlePostShared = () => {
                         <!-- Post Content -->
                         <div class="mb-3">
                             <p class="leading-relaxed whitespace-pre-wrap text-gray-900">
-                                {{ post.content }}
+                                {{ post.original_post?.content }}
                             </p>
 
                             <!-- Combined Media (Images + Videos) -->
