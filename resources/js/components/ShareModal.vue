@@ -35,14 +35,18 @@ const filteredUsers = computed(() => {
     );
 });
 
-const getUserUsername = (user: any) => {
-    if (!user) return '';
-    return user.username || user.name.toLowerCase().replace(/\s+/g, '');
+const getUserUsername = (user: any): string | null => {
+    if (!user) return null;
+    if (user.username && String(user.username).trim() !== '') {
+        return String(user.username).trim();
+    }
+    return null;
 };
 
 const getAvatarUrl = (avatar: string | null) => {
     if (!avatar) return null;
-    return `/storage/${avatar}`;
+    const base = avatar.startsWith('http') ? avatar : `/storage/${avatar}`;
+    return `${base}${base.includes('?') ? '&' : '?'}t=${Date.now()}`;
 };
 
 const handleAvatarError = (userId: number) => {
@@ -203,7 +207,7 @@ watch(() => props.isOpen, (isOpen) => {
                         <!-- Name and Username -->
                         <div class="flex-1 min-w-0">
                             <p class="text-sm font-medium text-gray-900 truncate">{{ user.name }}</p>
-                            <p class="text-xs text-gray-500 truncate">@{{ getUserUsername(user) }}</p>
+                            <p v-if="getUserUsername(user)" class="text-xs text-gray-500 truncate">@{{ getUserUsername(user) }}</p>
                         </div>
                     </div>
                 </div>

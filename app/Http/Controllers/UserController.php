@@ -223,6 +223,7 @@ class UserController extends Controller
                 return [
                     'id' => $follower->id,
                     'name' => $follower->name,
+                    'username' => $follower->username,
                     'email' => $follower->email,
                     'avatar' => $follower->avatar,
                     'bio' => $follower->bio ?? null,
@@ -240,6 +241,7 @@ class UserController extends Controller
             'user' => [
                 'id' => $user->id,
                 'name' => $user->name,
+                'username' => $user->username,
                 'email' => $user->email,
                 'avatar' => $user->avatar,
                 'bio' => $user->bio ?? null,
@@ -269,6 +271,7 @@ class UserController extends Controller
                 return [
                     'id' => $followingUser->id,
                     'name' => $followingUser->name,
+                    'username' => $followingUser->username,
                     'email' => $followingUser->email,
                     'avatar' => $followingUser->avatar,
                     'bio' => $followingUser->bio ?? null,
