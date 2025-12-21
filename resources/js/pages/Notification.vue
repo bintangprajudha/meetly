@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
+import AppHeaderLayout from '@/layouts/app/AppHeaderLayout.vue';
 import AppSidebarLayout from '@/layouts/app/AppSidebarLayout.vue';
 import axios from 'axios';
 
@@ -204,6 +205,7 @@ const getAvatarUrl = (avatar: string | null): string | null => {
 
 <template>
     <AppSidebarLayout>
+        <AppHeaderLayout>
         <main class="min-h-screen bg-gray-50 md:flex md:items-center md:justify-center">
             <div class="h-screen flex flex-col max-w-2xl w-full md:border-x md:border-gray-200 bg-white">
                 <!-- Header -->
@@ -335,5 +337,6 @@ const getAvatarUrl = (avatar: string | null): string | null => {
                 </div>
             </div>
         </main>
+        </AppHeaderLayout>
     </AppSidebarLayout>
 </template>

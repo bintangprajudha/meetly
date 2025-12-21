@@ -8,7 +8,7 @@
                     <div class="w-8 h-8 flex items-center justify-center rounded-md">
                         <!-- small logo icon, uses existing asset if available -->
                     </div>
-                    <h1 class="text-2xl font-bold text-[#D84040] mx-5">MEETLY</h1>
+                    <h1 class="text-4xl font-bold text-[#D84040] -ml-8">MEETLY</h1>
                 </a>
             </div>
         </header>
@@ -17,5 +17,4 @@
             <slot />
         </div>
     </div>
-
 </template>

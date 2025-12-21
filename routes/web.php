@@ -7,12 +7,13 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\FollowController;
+use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RepostController;
 use App\Http\Controllers\CommentController;
+use App\Http\Controllers\ExploreController;
 use App\Http\Controllers\MessageController;
-use App\Http\Controllers\NotificationController;
-use App\Http\Controllers\ReportController;
 use App\Http\Controllers\AdminUserController;
+use App\Http\Controllers\NotificationController;
 
 Route::get('/', function () {
     return Inertia::render('Home');
@@ -111,6 +112,8 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/profile/update', [UserController::class, 'update'])
         ->name('profile.update')
         ->middleware('auth');
+            
+     Route::get('/explore', [ExploreController::class, 'index'])->name('explore');
 
     // Report routes (user bisa melaporkan post)
     Route::post('/reports', [ReportController::class, 'store'])->name('reports.store');

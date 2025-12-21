@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import PostCard from '@/components/PostCard.vue';
 import PostModal from '@/components/PostModal.vue';
-// import AppHeaderLayout from '@/layouts/app/AppHeaderLayout.vue';
+import AppHeaderLayout from '@/layouts/app/AppHeaderLayout.vue';
 import AppSidebarLayout from '@/layouts/app/AppSidebarLayout.vue';
 import EditProfile from '@/components/EditProfile.vue';
 import { Head, router, usePage, Link } from '@inertiajs/vue3';
@@ -231,7 +231,7 @@ const unfollowUser = async () => {
     <Head />
 
     <AppSidebarLayout @open-post="openPostModal">
-        <!-- <AppHeaderLayout> -->
+        <AppHeaderLayout>
         <main class="mx-auto min-h-screen max-w-2xl bg-white">
             <!-- Top Bar with Back Button -->
             <div class="sticky top-0 z-10 border-b border-gray-200 bg-white/95 backdrop-blur-sm">
@@ -528,6 +528,6 @@ const unfollowUser = async () => {
 
         <PostModal :is-open="showPostModal" :user="authUser as any" @close="showPostModal = false"
             @posted="handlePostCreated" />
-
+        </AppHeaderLayout>
     </AppSidebarLayout>
 </template>
