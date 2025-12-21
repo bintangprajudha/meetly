@@ -2,7 +2,7 @@
 import { router } from '@inertiajs/vue3';
 
 const goHome = () => {
-    router.visit('/');
+    router.visit('/dashboard');
 };
 </script>
 

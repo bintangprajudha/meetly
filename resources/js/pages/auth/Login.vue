@@ -98,9 +98,7 @@ const submit = () => {
                 <span class="ml-2 text-gray-700">Remember Me</span>
             </label>
 
-            <Link href="#" class="text-red-600 hover:text-red-500">
-                Forgot Password?
-            </Link>
+            
         </div>
 
         <!-- LOGIN BUTTON -->

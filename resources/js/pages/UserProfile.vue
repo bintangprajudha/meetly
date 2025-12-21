@@ -1,4 +1,4 @@
-<script setup lang="ts">
+i repg d<script setup lang="ts">
 import PostCard from '@/components/PostCard.vue';
 import PostModal from '@/components/PostModal.vue';
 import AppSidebarLayout from '@/layouts/app/AppSidebarLayout.vue';
@@ -104,6 +104,15 @@ const activeTab = ref<
     'posts' | 'replies' | 'highlights' | 'articles' | 'media' | 'likes'
 >('posts');
 
+// Computed property to filter posts (exclude reposts)
+const filteredPosts = computed(() => {
+    return props.posts.filter((post) => {
+        // Exclude reposted posts (posts with type 'repost' or posts that have original_post_user)
+        const isRepost = post.type === 'repost' || post.original_post_user;
+        return !isRepost;
+    });
+});
+
 // Computed property to filter posts with media (exclude reposts)
 const mediaPosts = computed(() => {
     return props.posts.filter((post) => {
@@ -119,16 +128,12 @@ const mediaPosts = computed(() => {
     });
 });
 
-// Computed property to combine replies and reposts
-const repliesAndReposts = computed(() => {
-    const replies = props.replies || [];
+// Computed property to show only reposts (exclude replies/comments)
+const repostsOnly = computed(() => {
     const reposts = props.reposts || [];
 
-    // Combine both arrays
-    const combined = [...replies, ...reposts];
-
     // Sort by created_at (newest first)
-    return combined.sort((a, b) => {
+    return reposts.sort((a, b) => {
         const dateA = new Date(a.created_at).getTime();
         const dateB = new Date(b.created_at).getTime();
         return dateB - dateA;
@@ -442,13 +447,13 @@ const unfollowUser = async () => {
             <div class="min-h-[400px]">
                 <!-- POSTS -->
                 <div v-if="activeTab === 'posts'">
-                    <div v-if="props.posts.length === 0" class="px-8 py-24 text-center">
+                    <div v-if="filteredPosts.length === 0" class="px-8 py-24 text-center">
                         <h3 class="mb-2 text-[31px] font-bold text-gray-900">
                             No posts yet
                         </h3>
                     </div>
                     <div v-else>
-                        <PostCard v-for="post in props.posts" :key="post.id" :post="post"
+                        <PostCard v-for="post in filteredPosts" :key="post.id" :post="post"
                             :current-user="authUser as any" @delete="handleDeletePost"
                             class="cursor-pointer border-b border-gray-200 transition hover:bg-gray-50/60" />
                     </div>
@@ -456,17 +461,17 @@ const unfollowUser = async () => {
 
                 <!-- REPLIES -->
                 <div v-if="activeTab === 'replies'">
-                    <div v-if="repliesAndReposts.length === 0" class="px-8 py-24 text-center">
+                    <div v-if="repostsOnly.length === 0" class="px-8 py-24 text-center">
                         <h3 class="mb-2 text-[31px] font-bold text-gray-900">
-                            No replies yet
+                            No reposts yet
                         </h3>
                         <p class="text-[15px] text-gray-500">
-                            When {{ profileUser.name }} replies to posts,
+                            When {{ profileUser.name }} reposts a post,
                             they'll show up here
                         </p>
                     </div>
                     <div v-else>
-                        <PostCard v-for="post in repliesAndReposts" :key="post.id" :post="post"
+                        <PostCard v-for="post in repostsOnly" :key="post.id" :post="post"
                             :current-user="authUser as any" @delete="handleDeletePost"
                             class="cursor-pointer border-b border-gray-200 transition hover:bg-gray-50/60" />
                     </div>

@@ -218,12 +218,12 @@ const confirmLogout = () => {
     <div class="flex min-h-screen w-screen bg-gray-50">
         <!-- Desktop Sidebar -->
         <aside
-            class="group fixed top-0 left-0 z-50 hidden h-screen w-16 border-r border-gray-200 bg-white shadow transition-all duration-300 ease-in-out hover:w-64 lg:block">
+            class="group fixed top-0 left-0 z-[60] hidden h-screen w-16 border-r border-gray-200 bg-white shadow transition-all duration-300 ease-in-out hover:w-64 lg:block">
             <div class="flex h-full flex-col py-4">
                 <!-- Logo -->
                 <div class="mb-6 flex items-center justify-center px-2">
                     <a href="/dashboard" class="flex h-10 w-10 items-center justify-center">
-                        <img src="logo.png" alt="Logo Meetly" class="h-full w-full object-contain" />
+                        <img src="/logo.png" alt="Logo Meetly" class="h-full w-full object-contain" />
                     </a>
                 </div>
 

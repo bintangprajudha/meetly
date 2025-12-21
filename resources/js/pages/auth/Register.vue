@@ -85,17 +85,6 @@ const submit = () => {
                         form.errors.password_confirmation }}</div>
                 </div>
 
-                <!-- Terms -->
-                <div class="flex items-start gap-2">
-                    <input type="checkbox" v-model="form.terms" class="h-4 w-4 text-red-600">
-                    <label class="text-sm text-gray-700">
-                        By registering, I agree to the
-                        <a href="#" class="text-red-600 underline">Terms & Conditions</a>
-                        and
-                        <a href="#" class="text-red-600 underline">Privacy Policy</a>.
-                    </label>
-                </div>
-
                 <button type="submit" :disabled="form.processing"
                     class="w-full rounded-lg bg-[#e54c4c] px-4 py-3 text-white font-medium shadow hover:bg-red-700">
                     <span v-if="form.processing">Registering...</span>
