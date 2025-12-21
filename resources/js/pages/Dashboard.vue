@@ -2,7 +2,7 @@
 import PostCard from '@/components/PostCard.vue';
 import PostModal from '@/components/PostModal.vue';
 import AppSidebarLayout from '@/layouts/app/AppSidebarLayout.vue';
-import { Head, router } from '@inertiajs/vue3';
+import { router } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import Navbar from '@/layouts/app/Navbar.vue';
 

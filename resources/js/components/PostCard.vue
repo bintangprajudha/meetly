@@ -492,16 +492,12 @@ const handlePostShared = () => {
 
 const originalPostMediaList = computed(() => {
     if (props.post.type !== 'repost') return [];
-    
-    const originalPost = props.post.original_post;
-    if (!originalPost) return [];
-    
+
+    // Support both detailed `original_post` object and top-level repost fields
+    const op = (props.post.original_post ?? props.post) as any;
     const media: Array<{ type: 'image' | 'video'; src: string }> = [];
-    
-    // Cast ke any untuk mengakses property yang mungkin ada
-    const op = originalPost as any;
-    
-    // Cek media array terlebih dahulu
+
+    // Prefer unified media array if available
     if (Array.isArray(op.media) && op.media.length > 0) {
         op.media.forEach((m: any) => {
             if (m && (m.type === 'image' || m.type === 'video') && m.src) {
@@ -510,25 +506,23 @@ const originalPostMediaList = computed(() => {
         });
         return media;
     }
-    
-    // Fallback ke images array
+
+    // Fallback to images
     if (Array.isArray(op.images) && op.images.length > 0) {
         op.images.forEach((src: string) => {
             if (src) media.push({ type: 'image', src });
         });
-    } 
-    // Fallback ke image_url single
-    else if (op.image_url) {
+    } else if (op.image_url) {
         media.push({ type: 'image', src: op.image_url });
     }
-    
-    // Tambahkan videos jika ada
+
+    // Include videos if available
     if (Array.isArray(op.videos) && op.videos.length > 0) {
         op.videos.forEach((src: string) => {
             if (src) media.push({ type: 'video', src });
         });
     }
-    
+
     return media;
 });
 
