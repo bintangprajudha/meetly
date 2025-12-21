@@ -2,9 +2,9 @@
 import PostCard from '@/components/PostCard.vue';
 import PostModal from '@/components/PostModal.vue';
 import AppSidebarLayout from '@/layouts/app/AppSidebarLayout.vue';
-import AppHeaderLayout from '@/layouts/app/AppHeaderLayout.vue';
 import { Head, router } from '@inertiajs/vue3';
 import { ref } from 'vue';
+import Navbar from '@/layouts/app/Navbar.vue';
 
 // Define types
 interface Post {
@@ -131,10 +131,9 @@ const getAvatarColor = (name: string) => {
 
 <template>
 
-    <Head />
 
+    <Navbar />
     <AppSidebarLayout @open-post="openPostModal">
-        <AppHeaderLayout>
             <main class="min-h-screen bg-gray-50">
                 <div class="mx-auto max-w-2xl">
                     <!-- Create Post Box -->
@@ -181,7 +180,7 @@ const getAvatarColor = (name: string) => {
                                         </div>
                                         <!-- Post Button -->
                                         <button @click="openPostModal"
-                                            class="bg-blue-500 text-white px-4 py-1.5 rounded-full font-bold text-sm hover:bg-blue-600 transition-colors">
+                                            class="bg-red-500 text-white px-4 py-1.5 rounded-full font-bold text-sm hover:bg-red-600 transition-colors">
                                             Post
                                         </button>
                                     </div>
@@ -222,9 +221,10 @@ const getAvatarColor = (name: string) => {
                     </div>
                 </div>
             </main>
-        </AppHeaderLayout>
+        </AppSidebarLayout>
 
         <PostModal :is-open="showPostModal" :user="props.user" @close="showPostModal = false"
             @posted="handlePostCreated" />
-    </AppSidebarLayout>
+    
+    
 </template>

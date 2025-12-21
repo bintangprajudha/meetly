@@ -304,7 +304,7 @@ const handleKeydown = (event: KeyboardEvent) => {
                         <textarea
                             v-model="content"
                             placeholder="What's happening?"
-                            class="min-h-[120px] w-full resize-none rounded-lg border border-gray-300 p-3 text-lg text-black focus:border-transparent focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                            class="min-h-[120px] w-full resize-none rounded-lg border border-gray-300 p-3 text-lg text-black focus:border-transparent focus:ring-2 focus:ring-red-500 focus:outline-none"
                             :class="{
                                 'border-red-500 focus:ring-red-500':
                                     isOverLimit,
@@ -530,7 +530,7 @@ const handleKeydown = (event: KeyboardEvent) => {
                         <button
                             type="submit"
                             :disabled="!canPost"
-                            class="rounded-full bg-blue-500 px-6 py-2 font-medium text-white transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:bg-gray-300"
+                            class="rounded-full bg-red-500 px-6 py-2 font-medium text-white transition-colors hover:bg-red-600 disabled:cursor-not-allowed disabled:bg-gray-300"
                         >
                             <span v-if="isSubmitting" class="flex items-center">
                                 <svg

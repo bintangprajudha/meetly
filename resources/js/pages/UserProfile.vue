@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import PostCard from '@/components/PostCard.vue';
 import PostModal from '@/components/PostModal.vue';
-import AppHeaderLayout from '@/layouts/app/AppHeaderLayout.vue';
 import AppSidebarLayout from '@/layouts/app/AppSidebarLayout.vue';
 import EditProfile from '@/components/EditProfile.vue';
 import { Head, router, usePage, Link } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
+import Navbar from '@/layouts/app/Navbar.vue';
 
 // Define types
 interface Post {
@@ -231,7 +231,7 @@ const unfollowUser = async () => {
     <Head />
 
     <AppSidebarLayout @open-post="openPostModal">
-        <AppHeaderLayout>
+        <Navbar />
         <main class="mx-auto min-h-screen max-w-2xl bg-white">
             <!-- Top Bar with Back Button -->
             <div class="sticky top-0 z-10 border-b border-gray-200 bg-white/95 backdrop-blur-sm">
@@ -406,7 +406,7 @@ const unfollowUser = async () => {
                             ? 'font-semibold text-gray-900'
                             : 'text-gray-500',
                     ]">
-                        Replies
+                        Repost
                         <div v-if="activeTab === 'replies'"
                             class="absolute bottom-0 left-1/2 h-1 w-[56px] -translate-x-1/2 transform rounded-full bg-blue-500">
                         </div>
@@ -528,6 +528,5 @@ const unfollowUser = async () => {
 
         <PostModal :is-open="showPostModal" :user="authUser as any" @close="showPostModal = false"
             @posted="handlePostCreated" />
-        </AppHeaderLayout>
     </AppSidebarLayout>
 </template>

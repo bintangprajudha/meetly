@@ -2,8 +2,8 @@
 import { ref, computed, onMounted, nextTick } from 'vue';
 import axios from 'axios';
 import { usePage, Link, router } from '@inertiajs/vue3';
-import AppHeaderLayout from '@/layouts/app/AppHeaderLayout.vue';
 import AppSidebarLayout from '@/layouts/app/AppSidebarLayout.vue';
+import Navbar from '@/layouts/app/Navbar.vue';
 
 interface User {
   id: number;
@@ -429,7 +429,7 @@ const navigateToPost = (postId: number) => {
 
 <template>
   <AppSidebarLayout>
-    <AppHeaderLayout>
+    <Navbar />
       <div class="h-screen flex overflow-hidden justify-center bg-white md:bg-gray-50">
         <div class="flex w-full max-w-[1000px] md:border md:border-[#C9C9C9] bg-white min-h-0">
 
@@ -899,6 +899,5 @@ const navigateToPost = (postId: number) => {
           </div>
         </Transition>
       </Teleport>
-    </AppHeaderLayout>
   </AppSidebarLayout>
 </template>
